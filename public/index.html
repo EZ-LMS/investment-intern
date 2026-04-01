@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Investment Intern — 每日投資報告</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3349;
+    --text: #e8eaf0;
+    --text-muted: #8b90a8;
+    --accent: #6c8cff;
+    --accent2: #40d9a0;
+    --warn: #ffb347;
+    --danger: #ff6b6b;
+    --conservative: #40d9a0;
+    --optimistic: #ff6b6b;
+    --accurate: #6c8cff;
+    --unknown: #8b90a8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 2rem 1rem; }
+
+  /* Header */
+  .header { border-bottom: 1px solid var(--border); padding-bottom: 1.5rem; margin-bottom: 2rem; }
+  .header h1 { font-size: 1.6rem; font-weight: 700; color: var(--text); letter-spacing: -0.02em; }
+  .header h1 span { color: var(--accent); }
+  .meta { margin-top: 0.5rem; color: var(--text-muted); font-size: 0.85rem; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+  .badge { font-size: 0.75rem; padding: 0.25rem 0.75rem; border-radius: 999px; font-weight: 600; letter-spacing: 0.03em; }
+  .badge-structural { background: #1a3a4a; color: var(--accent2); border: 1px solid var(--accent2); }
+  .badge-kol { background: #2a2040; color: var(--accent); border: 1px solid var(--accent); }
+
+  /* Sections */
+  .section { margin-bottom: 2.5rem; }
+  .section-title { font-size: 1.1rem; font-weight: 700; color: var(--text); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+  .section-title::before { content: ''; width: 3px; height: 1.1rem; background: var(--accent); border-radius: 2px; }
+
+  /* Industry card */
+  .industry-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 1rem; }
+  .industry-header { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; }
+  .industry-name { font-size: 1.15rem; font-weight: 700; color: var(--text); }
+  .confidence { font-size: 0.8rem; color: var(--text-muted); }
+  .confidence-bar { display: inline-flex; gap: 2px; margin-left: 6px; }
+  .confidence-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
+  .confidence-dot.filled { background: var(--accent2); }
+  .industry-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem; margin-top: 0.75rem; }
+  .meta-item label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); display: block; margin-bottom: 2px; }
+  .meta-item p { font-size: 0.9rem; color: var(--text); }
+  .time-badge { display: inline-block; background: #1e2a1e; color: var(--accent2); border: 1px solid var(--accent2); border-radius: 6px; padding: 2px 10px; font-size: 0.85rem; font-weight: 600; }
+  .evidence { font-size: 0.85rem; color: var(--text-muted); border-left: 2px solid var(--border); padding-left: 0.75rem; margin-top: 0.75rem; font-style: italic; }
+
+  /* Company cards */
+  .companies-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; }
+  .company-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; position: relative; }
+  .company-card.tw { border-top: 2px solid #ff9f43; }
+  .company-card.us { border-top: 2px solid var(--accent); }
+  .market-badge { font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 4px; position: absolute; top: 1rem; right: 1rem; }
+  .market-badge.tw { background: #3a2010; color: #ff9f43; }
+  .market-badge.us { background: #10203a; color: var(--accent); }
+  .company-ticker { font-size: 0.85rem; color: var(--text-muted); font-family: monospace; }
+  .company-name { font-size: 1.05rem; font-weight: 700; margin: 2px 0 8px; }
+  .company-rows { display: flex; flex-direction: column; gap: 5px; }
+  .company-row { display: flex; justify-content: space-between; font-size: 0.82rem; }
+  .company-row .label { color: var(--text-muted); }
+  .company-row .value { color: var(--text); text-align: right; }
+  .warn-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 0.72rem; background: #3a2b00; color: var(--warn); border: 1px solid var(--warn); border-radius: 4px; padding: 2px 8px; margin-top: 8px; }
+  .financials { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); display: flex; gap: 0.75rem; flex-wrap: wrap; }
+  .fin-item { font-size: 0.75rem; }
+  .fin-item .fin-label { color: var(--text-muted); }
+  .company-sources { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px; }
+  .source-link { font-size: 0.7rem; color: var(--accent); text-decoration: none; border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; }
+  .source-link:hover { background: var(--surface2); }
+
+  /* Credibility */
+  .credibility-list { display: flex; flex-direction: column; gap: 0.75rem; }
+  .cred-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.25rem; }
+  .cred-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; }
+  .cred-company { font-weight: 600; font-size: 0.95rem; }
+  .cred-type { font-size: 0.75rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
+  .cred-type.conservative { background: #0d2e1e; color: var(--conservative); border: 1px solid var(--conservative); }
+  .cred-type.optimistic { background: #2e0d0d; color: var(--optimistic); border: 1px solid var(--optimistic); }
+  .cred-type.accurate { background: #0d1a3a; color: var(--accurate); border: 1px solid var(--accurate); }
+  .cred-type.unknown { background: var(--surface2); color: var(--unknown); border: 1px solid var(--border); }
+  .cred-body { margin-top: 0.75rem; display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+  .cred-item label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); display: block; margin-bottom: 3px; }
+  .cred-item p { font-size: 0.82rem; color: var(--text); }
+  .cred-guidance { grid-column: 1 / -1; }
+
+  /* KOL Topics */
+  .kol-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+  .kol-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.1rem; }
+  .kol-topic { font-size: 1rem; font-weight: 700; margin-bottom: 6px; }
+  .kol-summary { font-size: 0.83rem; color: var(--text-muted); margin-bottom: 8px; }
+  .kol-companies { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+  .kol-company-tag { font-size: 0.72rem; background: var(--surface2); color: var(--accent); border-radius: 4px; padding: 2px 8px; }
+  .kol-sources { display: flex; flex-wrap: wrap; gap: 4px; }
+
+  /* Sources */
+  .sources-list { display: flex; flex-direction: column; gap: 0.4rem; }
+  .source-item { display: flex; align-items: baseline; gap: 0.5rem; font-size: 0.82rem; }
+  .source-media { font-size: 0.7rem; color: var(--text-muted); background: var(--surface2); padding: 1px 6px; border-radius: 3px; white-space: nowrap; }
+  .source-item a { color: var(--accent); text-decoration: none; word-break: break-all; }
+  .source-item a:hover { text-decoration: underline; }
+
+  /* Divider */
+  .industry-divider { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+
+  @media (max-width: 600px) {
+    .cred-body { grid-template-columns: 1fr; }
+    .industry-meta { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <h1>Investment <span>Intern</span></h1>
+    <div class="meta">
+      <span>📅 2026/04/01 上午07:48</span>
+      <span class="badge badge-structural">供給面結構性機會</span>
+    </div>
+  </div>
+
+  
+    <div class="section">
+      
+      
+    <div class="section-title">產業機會</div>
+    <div class="industry-card">
+      <div class="industry-header">
+        <div class="industry-name">記憶體</div>
+        <div class="confidence">信心 10/10 <span class="confidence-bar"><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span></span></div>
+      </div>
+      <div class="industry-meta">
+        <div class="meta-item">
+          <label>供給限制原因</label>
+          <p>高頻寬記憶體(HBM)需求強勁，晶圓產能優先配置於HBM，排擠DDR5/DDR4等主流DRAM供給，形成結構性供給收縮，且全球記憶體供不應求已蔓延至消費電子和PC市場。</p>
+        </div>
+        <div class="meta-item">
+          <label>產能追上所需時間</label>
+          <p><span class="time-badge">約 2 年</span></p>
+        </div>
+      </div>
+      <div class="evidence">AI伺服器與高頻寬記憶體（HBM）需求快速成長，部分晶圓產能優先配置於HBM產品進而排擠DDR5與DDR4等主流DRAM供給，形成結構性供給收縮，市場普遍預期DRAM供需緊俏情況可能延續至2027年上半年。</div>
+    </div>
+      <div class="section-title" style="margin-top:1.5rem;">推薦股票</div>
+      <div class="companies-grid">
+        
+    <div class="company-card tw">
+      <span class="market-badge tw">台股</span>
+      <div class="company-ticker">2330</div>
+      <div class="company-name">台積電</div>
+      <div class="company-rows">
+        <div class="company-row"><span class="label">主題產品</span><span class="value">高頻寬記憶體 (HBM) 先進封裝 (CoWoS)</span></div>
+        <div class="company-row"><span class="label">主題產品佔總營收</span><span class="value">約 10-15% (先進封裝相關營收估計)</span></div>
+        <div class="company-row"><span class="label">產業市佔率</span><span class="value">約 90% (HBM整合先進封裝CoWoS市場)</span></div>
+      </div>
+      <div class="warn-badge">⚠️ 主題產品佔比偏低</div>
+      
+      <div class="company-sources"><a class="source-link" href="https://vocus.cc/article/6878acc1fd8978000198073c" target="_blank" rel="noopener">來源1</a><a class="source-link" href="https://investor.tsmc.com/chinese/encrypt/files/encrypt_file/reports/2025-07/9255e2044c94503d84b68f0118145242ed74b763/2Q25%20Presentation%20%28C%29.pdf" target="_blank" rel="noopener">來源2</a><a class="source-link" href="https://investor.tsmc.com/chinese/encrypt/files/encrypt_file/qr/phase4_reports/2025-04/8dfbcaae78a1ee6d3b210cb2c2206084ced73aa1/1Q25%20Presentation%20%28C%29%20WoG.pdf" target="_blank" rel="noopener">來源3</a></div>
+    </div>
+    <div class="company-card tw">
+      <span class="market-badge tw">台股</span>
+      <div class="company-ticker">2408</div>
+      <div class="company-name">南亞科技</div>
+      <div class="company-rows">
+        <div class="company-row"><span class="label">主題產品</span><span class="value">DRAM (動態隨機存取記憶體)</span></div>
+        <div class="company-row"><span class="label">主題產品佔總營收</span><span class="value">約 100%</span></div>
+        <div class="company-row"><span class="label">產業市佔率</span><span class="value">台灣DRAM製造龍頭，全球DRAM市佔約2-3%</span></div>
+      </div>
+      
+      
+      <div class="company-sources"><a class="source-link" href="https://poorstock.com/earningcall/2408" target="_blank" rel="noopener">來源1</a><a class="source-link" href="https://blog.fugle.tw/post/earnings-call-2408" target="_blank" rel="noopener">來源2</a><a class="source-link" href="https://finmoconf.diveinvest.net/company/2408" target="_blank" rel="noopener">來源3</a></div>
+    </div>
+    <div class="company-card tw">
+      <span class="market-badge tw">台股</span>
+      <div class="company-ticker">3260</div>
+      <div class="company-name">威剛科技</div>
+      <div class="company-rows">
+        <div class="company-row"><span class="label">主題產品</span><span class="value">DRAM模組, NAND Flash儲存產品</span></div>
+        <div class="company-row"><span class="label">主題產品佔總營收</span><span class="value">約 90-100%</span></div>
+        <div class="company-row"><span class="label">產業市佔率</span><span class="value">台灣記憶體模組龍頭，全球記憶體模組前十大</span></div>
+      </div>
+      
+      
+      <div class="company-sources"><a class="source-link" href="https://poorstock.com/earningcall/3260" target="_blank" rel="noopener">來源1</a><a class="source-link" href="https://webapi3.adata.com/storage/ir/20251118_%E5%A8%81%E5%89%9B%E6%B3%95%E8%AA%AA%E6%9C%83%E7%B0%A1%E5%A0%B1_f-1.pdf" target="_blank" rel="noopener">來源2</a><a class="source-link" href="https://www.adata.com/API3/storage/ir/20250917_adata_investor_conference.pdf" target="_blank" rel="noopener">來源3</a></div>
+    </div>
+    <div class="company-card us">
+      <span class="market-badge us">美股</span>
+      <div class="company-ticker">MU</div>
+      <div class="company-name">Micron Technology</div>
+      <div class="company-rows">
+        <div class="company-row"><span class="label">主題產品</span><span class="value">DRAM (包含HBM), NAND Flash</span></div>
+        <div class="company-row"><span class="label">主題產品佔總營收</span><span class="value">約 100%</span></div>
+        <div class="company-row"><span class="label">產業市佔率</span><span class="value">全球DRAM與NAND Flash前三大供應商</span></div>
+      </div>
+      
+      
+      <div class="company-sources"><a class="source-link" href="https://www.investing.com/news/transcripts/earnings-call-transcript-micron-q4-2025-beats-expectations-stock-dips-93CH-4274594" target="_blank" rel="noopener">來源1</a><a class="source-link" href="https://www.fool.com/earnings/call-transcripts/2025/06/25/micron-mu-q3-2025-earnings-call-transcript/" target="_blank" rel="noopener">來源2</a><a class="source-link" href="https://www.stockinsights.ai/us/MU/earnings-transcript/fy25-q2-9b85" target="_blank" rel="noopener">來源3</a></div>
+    </div>
+    <div class="company-card us">
+      <span class="market-badge us">美股</span>
+      <div class="company-ticker">NVDA</div>
+      <div class="company-name">NVIDIA</div>
+      <div class="company-rows">
+        <div class="company-row"><span class="label">主題產品</span><span class="value">AI GPU (及其搭載的高頻寬記憶體HBM)</span></div>
+        <div class="company-row"><span class="label">主題產品佔總營收</span><span class="value">約 80-90% (資料中心營收，主要由AI GPU驅動)</span></div>
+        <div class="company-row"><span class="label">產業市佔率</span><span class="value">約 80-95% (AI訓練GPU市場)</span></div>
+      </div>
+      
+      
+      <div class="company-sources"><a class="source-link" href="https://www.fool.com/earnings/call-transcripts/2025/02/26/nvidia-nvda-q4-2025-earnings-call-transcript/" target="_blank" rel="noopener">來源1</a><a class="source-link" href="https://www.fool.com/earnings/call-transcripts/2024/08/28/nvidia-nvda-q2-2025-earnings-call-transcript/" target="_blank" rel="noopener">來源2</a><a class="source-link" href="https://www.fool.com/earnings/call-transcripts/2024/11/20/nvidia-nvda-q3-2025-earnings-call-transcript/" target="_blank" rel="noopener">來源3</a></div>
+    </div>
+    <div class="company-card us">
+      <span class="market-badge us">美股</span>
+      <div class="company-ticker">AMD</div>
+      <div class="company-name">Advanced Micro Devices</div>
+      <div class="company-rows">
+        <div class="company-row"><span class="label">主題產品</span><span class="value">AI加速器 (MI系列) 與高階GPU (採用HBM)</span></div>
+        <div class="company-row"><span class="label">主題產品佔總營收</span><span class="value">約 20-30% (資料中心GPU/加速器營收，快速成長中)</span></div>
+        <div class="company-row"><span class="label">產業市佔率</span><span class="value">AI加速器市場主要競爭者 (僅次於NVIDIA)</span></div>
+      </div>
+      
+      
+      <div class="company-sources"><a class="source-link" href="https://www.fool.com/earnings/call-transcripts/2026/02/03/amd-amd-q4-2025-earnings-call-transcript/" target="_blank" rel="noopener">來源1</a><a class="source-link" href="https://uk.investing.com/news/transcripts/earnings-call-transcript-amd-q4-2025-beats-forecasts-shares-rise-93CH-4486760" target="_blank" rel="noopener">來源2</a><a class="source-link" href="https://ir.amd.com/news-events/press-releases/detail/1276/amd-reports-fourth-quarter-and-full-year-2025-financial-results" target="_blank" rel="noopener">來源3</a></div>
+    </div>
+      </div>
+      <div class="section-title" style="margin-top:1.5rem;">管理層評鑑</div>
+      <div class="credibility-list">
+        
+    <div class="cred-card">
+      <div class="cred-header">
+        <span class="cred-company">2330 台積電</span>
+        <span class="cred-type accurate">準確型</span>
+      </div>
+      <div class="cred-body">
+        <div class="cred-item">
+          <label>上季 Guidance</label>
+          <p>台積電預期第4季美元營收將落在261億到269億美元之間，約落在新台幣8352億至8608億元間；毛利率將落在57至59%之間，營業利益率則介於46.5到48.5%。</p>
+        </div>
+        <div class="cred-item">
+          <label>本季實際</label>
+          <p>營收 268.8 億美元，毛利率 59.0%，為財測 261~269 億美元上緣</p>
+        </div>
+        <div class="cred-item cred-guidance">
+          <label>最新前瞻展望</label>
+          <p>預估 2025Q1 營收 250~258 億美元，QoQ-5.5%、YoY+34.7%。毛利率 57-59%（匯率預計 32.8 新台幣/美元），較 2024Q4 微幅下降主因 N2 費用認列、CoWoS 折舊費用增加；營業利益率為 46.5~48.5%。 <a class="source-link" href="https://vocus.cc/article/6788b668fd89780001e42971" target="_blank" rel="noopener">來源</a></p>
+        </div>
+      </div>
+    </div>
+    <div class="cred-card">
+      <div class="cred-header">
+        <span class="cred-company">2408 南亞科技</span>
+        <span class="cred-type unknown">資料不足</span>
+      </div>
+      <div class="cred-body">
+        <div class="cred-item">
+          <label>上季 Guidance</label>
+          <p>提供的資料中未明確提及南亞科技管理層針對2025年第四季的具體財報指引。</p>
+        </div>
+        <div class="cred-item">
+          <label>本季實際</label>
+          <p>2025年第四季營業收入為新台幣300.94億元，單季稅後淨利為新台幣110.83億元，單季每股盈餘（EPS）達新台幣3.58元。</p>
+        </div>
+        <div class="cred-item cred-guidance">
+          <label>最新前瞻展望</label>
+          <p>南亞科技預計2026年資本支出將大幅增加至不超過新台幣520億元（其中生產設備約佔三成），或約新台幣500億元。2026年位元銷售量預計將有十位數百分比的年成長。 <a class="source-link" href="https://poorstock.com/earningcall/2408" target="_blank" rel="noopener">來源</a></p>
+        </div>
+      </div>
+    </div>
+    <div class="cred-card">
+      <div class="cred-header">
+        <span class="cred-company">3260 威剛科技</span>
+        <span class="cred-type conservative">保守型 (Sandbagging)</span>
+      </div>
+      <div class="cred-body">
+        <div class="cred-item">
+          <label>上季 Guidance</label>
+          <p>威剛在2025年第三季法說會中指出，第四季將以高毛利策略為主，庫存積極拉升至年底170-180億元。</p>
+        </div>
+        <div class="cred-item">
+          <label>本季實際</label>
+          <p>2025年第四季實際存貨為235.57億元（NT$23,557百萬元），毛利率達48.41%。</p>
+        </div>
+        <div class="cred-item cred-guidance">
+          <label>最新前瞻展望</label>
+          <p>威剛預期2026年初存貨上看200-250億元；DDR5佔比已逾六成，2026年漲價幅度預期大於DDR4；股利政策將維持高於50%配發率，明年現金股利有望超越2013年7元歷史高點。 <a class="source-link" href="https://poorstock.com/earningcall/3260" target="_blank" rel="noopener">來源</a></p>
+        </div>
+      </div>
+    </div>
+    <div class="cred-card">
+      <div class="cred-header">
+        <span class="cred-company">Micron Technology</span>
+        <span class="cred-type conservative">保守型 (Sandbagging)</span>
+      </div>
+      <div class="cred-body">
+        <div class="cred-item">
+          <label>上季 Guidance</label>
+          <p>The company anticipates revenues of $7.60 billion (+/-$200 million) for the fiscal fourth quarter.</p>
+        </div>
+        <div class="cred-item">
+          <label>本季實際</label>
+          <p>Fiscal Q4 2024 revenue was $7.75 billion. Non-GAAP diluted earnings per share was $1.18.</p>
+        </div>
+        <div class="cred-item cred-guidance">
+          <label>最新前瞻展望</label>
+          <p>For the first quarter of 2025 (Non-GAAP Outlook): Revenue $8.70 billion ± $200 million; Diluted earnings per share $1.74 ± $0.08. <a class="source-link" href="https://investors.micron.com/node/47831/pdf" target="_blank" rel="noopener">來源</a></p>
+        </div>
+      </div>
+    </div>
+    <div class="cred-card">
+      <div class="cred-header">
+        <span class="cred-company">NVIDIA</span>
+        <span class="cred-type conservative">保守型 (Sandbagging)</span>
+      </div>
+      <div class="cred-body">
+        <div class="cred-item">
+          <label>上季 Guidance</label>
+          <p>The October quarter guidance of $16 billion</p>
+        </div>
+        <div class="cred-item">
+          <label>本季實際</label>
+          <p>$18.120 billion (Fiscal Q3 2024 Revenue)</p>
+        </div>
+        <div class="cred-item cred-guidance">
+          <label>最新前瞻展望</label>
+          <p>Revenue is expected to be $24.0 billion <a class="source-link" href="https://investor.nvidia.com/news/press-release-details/2024/NVIDIA-Announces-Financial-Results-for-Fourth-Quarter-and-Fiscal-2024/" target="_blank" rel="noopener">來源</a></p>
+        </div>
+      </div>
+    </div>
+    <div class="cred-card">
+      <div class="cred-header">
+        <span class="cred-company">Advanced Micro Devices</span>
+        <span class="cred-type conservative">保守型 (Sandbagging)</span>
+      </div>
+      <div class="cred-body">
+        <div class="cred-item">
+          <label>上季 Guidance</label>
+          <p>Q4 2024 earnings estimates (specific numerical guidance for Q4 2024 overall revenue is not explicitly stated in the provided texts).</p>
+        </div>
+        <div class="cred-item">
+          <label>本季實際</label>
+          <p>AMD Q4 earnings beat estimates, delivering record quarterly and full year revenue. AMD generated more than $5 billion in AI revenues in 2024.</p>
+        </div>
+        <div class="cred-item cred-guidance">
+          <label>最新前瞻展望</label>
+          <p>Q1 2025 revenue is guided to be down 7% sequentially. The data center segment is expected to be down just about the corporate average, with client and embedded businesses down more due to seasonality, and gaming business down less. Gross margin guidance for Q1 2025 remains flat at 54%. The data center business is expected to grow strong double digits in 2025, with a stronger second half. <a class="source-link" href="https://finance.yahoo.com/news/amd-q4-earnings-beat-estimates-161600490.html" target="_blank" rel="noopener">來源</a></p>
+        </div>
+      </div>
+    </div>
+      </div>
+    </div>
+  
+    <div class="section">
+      <hr class="industry-divider">
+      
+    <div class="section-title">產業機會</div>
+    <div class="industry-card">
+      <div class="industry-header">
+        <div class="industry-name">銅</div>
+        <div class="confidence">信心 10/10 <span class="confidence-bar"><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span></span></div>
+      </div>
+      <div class="industry-meta">
+        <div class="meta-item">
+          <label>供給限制原因</label>
+          <p>倫敦金屬交易所(LME)銅現貨升水飆至28年新高，顯示庫存極度緊張，即期需求強勁，空頭面臨實物擠倉壓力。</p>
+        </div>
+        <div class="meta-item">
+          <label>產能追上所需時間</label>
+          <p><span class="time-badge">約 5 年</span></p>
+        </div>
+      </div>
+      <div class="evidence">LME 現貨升水飆到 28 年新高，空頭被「實物挤仓」逼到牆角，代表庫存偏緊、即期需求很強或者有人被逼交割。</div>
+    </div>
+      <div class="section-title" style="margin-top:1.5rem;">推薦股票</div>
+      <div class="companies-grid">
+        
+    <div class="company-card us">
+      <span class="market-badge us">美股</span>
+      <div class="company-ticker">FCX</div>
+      <div class="company-name">Freeport-McMoRan</div>
+      <div class="company-rows">
+        <div class="company-row"><span class="label">主題產品</span><span class="value">銅礦開採及精煉</span></div>
+        <div class="company-row"><span class="label">主題產品佔總營收</span><span class="value">約 80-90%</span></div>
+        <div class="company-row"><span class="label">產業市佔率</span><span class="value">全球前三大銅生產商</span></div>
+      </div>
+      
+      
+      <div class="company-sources"><a class="source-link" href="https://www.fool.com/earnings/call-transcripts/2026/01/22/freeport-mcmoran-fcx-q4-2025-earnings-transcript/" target="_blank" rel="noopener">來源1</a><a class="source-link" href="https://www.investing.com/news/transcripts/earnings-call-transcript-freeportmcmoran-q4-2025-earnings-surpass-expectations-93CH-4460975" target="_blank" rel="noopener">來源2</a><a class="source-link" href="https://fortune.com/company/freeport-mcmoran/earnings/q1-2025/" target="_blank" rel="noopener">來源3</a></div>
+    </div>
+    <div class="company-card us">
+      <span class="market-badge us">美股</span>
+      <div class="company-ticker">BHP</div>
+      <div class="company-name">BHP Group</div>
+      <div class="company-rows">
+        <div class="company-row"><span class="label">主題產品</span><span class="value">銅礦開採 (包含全球最大銅礦Escondida)</span></div>
+        <div class="company-row"><span class="label">主題產品佔總營收</span><span class="value">約 25-30%</span></div>
+        <div class="company-row"><span class="label">產業市佔率</span><span class="value">全球主要銅生產商之一，擁有Escondida礦區主要股份</span></div>
+      </div>
+      
+      
+      <div class="company-sources"><a class="source-link" href="https://finance.yahoo.com/quote/BHP1.HA/earnings/BHP1.HA-H1-2025-earnings_call-237026.html" target="_blank" rel="noopener">來源1</a><a class="source-link" href="https://www.marketscreener.com/news/transcript-bhp-group-limited-2025-earnings-call-aug-19-2025-ce7c50dcd18af725" target="_blank" rel="noopener">來源2</a><a class="source-link" href="https://finance.yahoo.com/news/bhp-group-fy25-earnings-revenues-161300386.html" target="_blank" rel="noopener">來源3</a></div>
+    </div>
+    <div class="company-card us">
+      <span class="market-badge us">美股</span>
+      <div class="company-ticker">RIO</div>
+      <div class="company-name">Rio Tinto</div>
+      <div class="company-rows">
+        <div class="company-row"><span class="label">主題產品</span><span class="value">銅礦開採 (包含Oyu Tolgoi等大型銅礦)</span></div>
+        <div class="company-row"><span class="label">主題產品佔總營收</span><span class="value">約 10-15%</span></div>
+        <div class="company-row"><span class="label">產業市佔率</span><span class="value">全球主要銅生產商之一，擁有Oyu Tolgoi等大型銅礦區股份</span></div>
+      </div>
+      <div class="warn-badge">⚠️ 主題產品佔比偏低</div>
+      
+      <div class="company-sources"><a class="source-link" href="https://finance.yahoo.com/quote/RIO1.MU/earnings/RIO1.MU-H1-2025-earnings_call-335284.html/" target="_blank" rel="noopener">來源1</a><a class="source-link" href="https://finance.yahoo.com/news/rio-tinto-plc-rio-full-150151166.html" target="_blank" rel="noopener">來源2</a><a class="source-link" href="https://company-announcements.afr.com/asx/rio/88b8e74c-0d54-11f1-bade-ca622cf181ba.pdf" target="_blank" rel="noopener">來源3</a></div>
+    </div>
+      </div>
+      <div class="section-title" style="margin-top:1.5rem;">管理層評鑑</div>
+      <div class="credibility-list">
+        
+    <div class="cred-card">
+      <div class="cred-header">
+        <span class="cred-company">Freeport-McMoRan</span>
+        <span class="cred-type accurate">準確型</span>
+      </div>
+      <div class="cred-body">
+        <div class="cred-item">
+          <label>上季 Guidance</label>
+          <p>Freeport-McMoRan (FCX)在2024年第三季財報中，預計2024年全年營運現金流為$6.8B。</p>
+        </div>
+        <div class="cred-item">
+          <label>本季實際</label>
+          <p>FCX報告2024年全年營運現金流超過$7B。</p>
+        </div>
+        <div class="cred-item cred-guidance">
+          <label>最新前瞻展望</label>
+          <p>預計2025年和2026年資本支出約為每年$4.4B。2025年預計現金成本為每磅$1.60，而2024年為每磅$1.56。預計2026年和2027年EBITDA在銅價$4時超過$11B，在銅價$5時超過$15B。預計2026年和2027年營運現金流在銅價$4時每年接近$8B，在銅價$5時每年超過$11B。 <a class="source-link" href="https://finance.yahoo.com/news/freeport-mcmoran-inc-fcx-q4-070352635.html" target="_blank" rel="noopener">來源</a></p>
+        </div>
+      </div>
+    </div>
+    <div class="cred-card">
+      <div class="cred-header">
+        <span class="cred-company">BHP Group</span>
+        <span class="cred-type accurate">準確型</span>
+      </div>
+      <div class="cred-body">
+        <div class="cred-item">
+          <label>上季 Guidance</label>
+          <p>在 H1 FY2024 財報中，管理層對 FY2024 全年資本支出指引約為 100 億美元（'Management guided to full year capex of around US$10bn'）。此外，公司對所有大宗商品均設有產量指引和單位成本指引。</p>
+        </div>
+        <div class="cred-item">
+          <label>本季實際</label>
+          <p>FY2024 實際資本支出約為 105 億美元。FY2024 財年實現了所有大宗商品的產量指引，其中煉焦煤達到其修訂後產量指引的上限。除 BMA 外，所有資產的原始單位成本指引均已達成。</p>
+        </div>
+        <div class="cred-item cred-guidance">
+          <label>最新前瞻展望</label>
+          <p>FY2025 銅產量指引為 1,845 – 2,045 千噸。公司還預計到 2028 財年，鐵礦石產量將超過 3.05 億噸（可選至 3.3 億噸），並將 Escondida 在 2027 財年的指引上調至 1.0-1.1 百萬噸。 <a class="source-link" href="https://www.bhp-china.cn/-/media/documents/investors/annual-reports/2024/240827_bhpannualreport2024.pdf" target="_blank" rel="noopener">來源</a></p>
+        </div>
+      </div>
+    </div>
+    <div class="cred-card">
+      <div class="cred-header">
+        <span class="cred-company">Rio Tinto</span>
+        <span class="cred-type unknown">資料不足</span>
+      </div>
+      <div class="cred-body">
+        <div class="cred-item">
+          <label>上季 Guidance</label>
+          <p>分析失敗</p>
+        </div>
+        <div class="cred-item">
+          <label>本季實際</label>
+          <p>分析失敗</p>
+        </div>
+        <div class="cred-item cred-guidance">
+          <label>最新前瞻展望</label>
+          <p>分析失敗 </p>
+        </div>
+      </div>
+    </div>
+      </div>
+    </div>
+  
+    <div class="section">
+      <hr class="industry-divider">
+      
+    <div class="section-title">產業機會</div>
+    <div class="industry-card">
+      <div class="industry-header">
+        <div class="industry-name">先進PCB及IC載板</div>
+        <div class="confidence">信心 9/10 <span class="confidence-bar"><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot"></span></span></div>
+      </div>
+      <div class="industry-meta">
+        <div class="meta-item">
+          <label>供給限制原因</label>
+          <p>高階玻纖布(T布)嚴重缺貨，影響載板出貨；AI伺服器對光學模組及PCB結構複雜度要求高，需仰賴mSAP製程，但具備mSAP能力的廠商稀缺。</p>
+        </div>
+        <div class="meta-item">
+          <label>產能追上所需時間</label>
+          <p><span class="time-badge">約 2 年</span></p>
+        </div>
+      </div>
+      <div class="evidence">載板 T布：目前呈現嚴重缺貨，可能導致載板出貨不順，反而有機會促使載板漲價與相關公司獲利上修。光引擎數量增加導致PCB結構複雜、單價提升，必須採用過去生產蘋果手機主板的mSAP製程，具備mSAP能力的廠商不多。</div>
+    </div>
+      <div class="section-title" style="margin-top:1.5rem;">推薦股票</div>
+      <div class="companies-grid">
+        
+    <div class="company-card tw">
+      <span class="market-badge tw">台股</span>
+      <div class="company-ticker">3037</div>
+      <div class="company-name">欣興電子</div>
+      <div class="company-rows">
+        <div class="company-row"><span class="label">主題產品</span><span class="value">ABF載板、BT載板、高密度連結板(HDI)</span></div>
+        <div class="company-row"><span class="label">主題產品佔總營收</span><span class="value">約 70-80%</span></div>
+        <div class="company-row"><span class="label">產業市佔率</span><span class="value">全球ABF載板前三大供應商之一，IC載板市場佔有重要地位</span></div>
+      </div>
+      
+      
+      <div class="company-sources"><a class="source-link" href="https://research.yuanta-consulting.com.tw/temp/ProductionYT/83681.pdf" target="_blank" rel="noopener">來源1</a><a class="source-link" href="https://blog.fugle.tw/post/earnings-call-3037-2025-09-02" target="_blank" rel="noopener">來源2</a><a class="source-link" href="https://poorstock.com/earningcall/3037" target="_blank" rel="noopener">來源3</a></div>
+    </div>
+    <div class="company-card tw">
+      <span class="market-badge tw">台股</span>
+      <div class="company-ticker">8046</div>
+      <div class="company-name">南亞電路板</div>
+      <div class="company-rows">
+        <div class="company-row"><span class="label">主題產品</span><span class="value">ABF載板、BT載板</span></div>
+        <div class="company-row"><span class="label">主題產品佔總營收</span><span class="value">約 80-90%</span></div>
+        <div class="company-row"><span class="label">產業市佔率</span><span class="value">全球ABF載板主要供應商之一，市場佔有率高</span></div>
+      </div>
+      
+      
+      <div class="company-sources"><a class="source-link" href="https://www.nanyapcb.com.tw/nypcb/images/InvestorRelations/FinancialReport/NYPCBCH20250807.pdf" target="_blank" rel="noopener">來源1</a><a class="source-link" href="https://finance.biggo.com.tw/quote/8046.TW/earnings-call?t=TW_8046.TW_2026-03-17" target="_blank" rel="noopener">來源2</a><a class="source-link" href="http://mops.twse.com.tw" target="_blank" rel="noopener">來源3</a></div>
+    </div>
+    <div class="company-card tw">
+      <span class="market-badge tw">台股</span>
+      <div class="company-ticker">4958</div>
+      <div class="company-name">臻鼎科技控股</div>
+      <div class="company-rows">
+        <div class="company-row"><span class="label">主題產品</span><span class="value">高密度連結板(HDI, 含mSAP)、IC載板、軟硬結合板</span></div>
+        <div class="company-row"><span class="label">主題產品佔總營收</span><span class="value">約 90%以上</span></div>
+        <div class="company-row"><span class="label">產業市佔率</span><span class="value">全球軟板及HDI板領導廠商，IC載板業務快速成長</span></div>
+      </div>
+      
+      
+      <div class="company-sources"><a class="source-link" href="https://vocus.cc/article/689cc9ddfd897800019f2e2f" target="_blank" rel="noopener">來源1</a><a class="source-link" href="https://finance.biggo.com/quote/4958.TW/earnings-call" target="_blank" rel="noopener">來源2</a><a class="source-link" href="https://poorstock.com/earningcall/4958" target="_blank" rel="noopener">來源3</a></div>
+    </div>
+    <div class="company-card us">
+      <span class="market-badge us">美股</span>
+      <div class="company-ticker">TTMI</div>
+      <div class="company-name">TTM Technologies, Inc.</div>
+      <div class="company-rows">
+        <div class="company-row"><span class="label">主題產品</span><span class="value">Advanced HDI PCBs, RF &amp; Specialty Components, IC Substrates</span></div>
+        <div class="company-row"><span class="label">主題產品佔總營收</span><span class="value">約 80%以上</span></div>
+        <div class="company-row"><span class="label">產業市佔率</span><span class="value">全球前十大PCB製造商之一，尤其在高階及特殊應用PCB領域具領先地位</span></div>
+      </div>
+      
+      
+      <div class="company-sources"><a class="source-link" href="https://seekingalpha.com/article/4806560-ttm-technologies-inc-ttmi-q2-2025-earnings-call-transcript" target="_blank" rel="noopener">來源1</a><a class="source-link" href="https://www.fool.com/earnings/call-transcripts/2026/02/04/ttm-tech-ttmi-q4-2025-earnings-call-transcript/" target="_blank" rel="noopener">來源2</a><a class="source-link" href="https://investors.ttm.com/" target="_blank" rel="noopener">來源3</a></div>
+    </div>
+      </div>
+      <div class="section-title" style="margin-top:1.5rem;">管理層評鑑</div>
+      <div class="credibility-list">
+        
+    <div class="cred-card">
+      <div class="cred-header">
+        <span class="cred-company">3037 欣興電子</span>
+        <span class="cred-type unknown">資料不足</span>
+      </div>
+      <div class="cred-body">
+        <div class="cred-item">
+          <label>上季 Guidance</label>
+          <p>分析失敗</p>
+        </div>
+        <div class="cred-item">
+          <label>本季實際</label>
+          <p>分析失敗</p>
+        </div>
+        <div class="cred-item cred-guidance">
+          <label>最新前瞻展望</label>
+          <p>分析失敗 </p>
+        </div>
+      </div>
+    </div>
+    <div class="cred-card">
+      <div class="cred-header">
+        <span class="cred-company">8046 南亞電路板</span>
+        <span class="cred-type unknown">資料不足</span>
+      </div>
+      <div class="cred-body">
+        <div class="cred-item">
+          <label>上季 Guidance</label>
+          <p>分析失敗</p>
+        </div>
+        <div class="cred-item">
+          <label>本季實際</label>
+          <p>分析失敗</p>
+        </div>
+        <div class="cred-item cred-guidance">
+          <label>最新前瞻展望</label>
+          <p>分析失敗 </p>
+        </div>
+      </div>
+    </div>
+    <div class="cred-card">
+      <div class="cred-header">
+        <span class="cred-company">4958 臻鼎科技控股</span>
+        <span class="cred-type unknown">資料不足</span>
+      </div>
+      <div class="cred-body">
+        <div class="cred-item">
+          <label>上季 Guidance</label>
+          <p>分析失敗</p>
+        </div>
+        <div class="cred-item">
+          <label>本季實際</label>
+          <p>分析失敗</p>
+        </div>
+        <div class="cred-item cred-guidance">
+          <label>最新前瞻展望</label>
+          <p>分析失敗 </p>
+        </div>
+      </div>
+    </div>
+    <div class="cred-card">
+      <div class="cred-header">
+        <span class="cred-company">TTM Technologies, Inc.</span>
+        <span class="cred-type unknown">資料不足</span>
+      </div>
+      <div class="cred-body">
+        <div class="cred-item">
+          <label>上季 Guidance</label>
+          <p>分析失敗</p>
+        </div>
+        <div class="cred-item">
+          <label>本季實際</label>
+          <p>分析失敗</p>
+        </div>
+        <div class="cred-item cred-guidance">
+          <label>最新前瞻展望</label>
+          <p>分析失敗 </p>
+        </div>
+      </div>
+    </div>
+      </div>
+    </div>
+  
+
+  
+    <div class="section">
+      <div class="section-title">原始資料來源</div>
+      <div class="sources-list">
+    <div class="source-item">
+      <span class="source-media">Threads</span>
+      <span style="color:var(--text-muted);">james93.lin</span>
+      <a href="https://www.threads.net/@hungrymo_0501/post/DHdsZCJzxDw" target="_blank" rel="noopener">https://www.threads.net/@hungrymo_0501/post/DHdsZCJzxDw</a>
+    </div>
+    <div class="source-item">
+      <span class="source-media">Threads</span>
+      <span style="color:var(--text-muted);">james93.lin</span>
+      <a href="https://www.threads.net/@wukt999/post/C8o79FyP1O_" target="_blank" rel="noopener">https://www.threads.net/@wukt999/post/C8o79FyP1O_</a>
+    </div>
+    <div class="source-item">
+      <span class="source-media">Threads</span>
+      <span style="color:var(--text-muted);">james93.lin</span>
+      <a href="https://www.threads.net/@ministone999/post/DFOVloRzmkm" target="_blank" rel="noopener">https://www.threads.net/@ministone999/post/DFOVloRzmkm</a>
+    </div>
+    <div class="source-item">
+      <span class="source-media">Threads</span>
+      <span style="color:var(--text-muted);">james93.lin</span>
+      <a href="https://www.threads.net/tag/KITH" target="_blank" rel="noopener">https://www.threads.net/tag/KITH</a>
+    </div>
+    <div class="source-item">
+      <span class="source-media">Threads</span>
+      <span style="color:var(--text-muted);">james93.lin</span>
+      <a href="https://www.threads.net/@lin__photograph" target="_blank" rel="noopener">https://www.threads.net/@lin__photograph</a>
+    </div>
+    <div class="source-item">
+      <span class="source-media">Threads</span>
+      <span style="color:var(--text-muted);">wjsfinance</span>
+      <a href="https://www.threads.net/@wukt999/post/C8o79FyP1O_" target="_blank" rel="noopener">https://www.threads.net/@wukt999/post/C8o79FyP1O_</a>
+    </div>
+    <div class="source-item">
+      <span class="source-media">Threads</span>
+      <span style="color:var(--text-muted);">wjsfinance</span>
+      <a href="https://www.threads.net/@wukt999" target="_blank" rel="noopener">https://www.threads.net/@wukt999</a>
+    </div>
+    <div class="source-item">
+      <span class="source-media">Threads</span>
+      <span style="color:var(--text-muted);">wjsfinance</span>
+      <a href="https://www.threads.net/@sparksparkfinance/post/DTwep5WkwaB" target="_blank" rel="noopener">https://www.threads.net/@sparksparkfinance/post/DTwep5WkwaB</a>
+    </div>
+    <div class="source-item">
+      <span class="source-media">Threads</span>
+      <span style="color:var(--text-muted);">wjsfinance</span>
+      <a href="https://www.threads.net/@hungrymo_0501/post/DHdsZCJzxDw" target="_blank" rel="noopener">https://www.threads.net/@hungrymo_0501/post/DHdsZCJzxDw</a>
+    </div>
+    <div class="source-item">
+      <span class="source-media">Threads</span>
+      <span style="color:var(--text-muted);">wjsfinance</span>
+      <a href="https://www.threads.net/@ministone999/post/DFOVloRzmkm" target="_blank" rel="noopener">https://www.threads.net/@ministone999/post/DFOVloRzmkm</a>
+    </div>
+    <div class="source-item">
+      <span class="source-media">Threads</span>
+      <span style="color:var(--text-muted);">statementdog</span>
+      <a href="https://www.threads.net/@statementdog" target="_blank" rel="noopener">https://www.threads.net/@statementdog</a>
+    </div>
+    <div class="source-item">
+      <span class="source-media">Threads</span>
+      <span style="color:var(--text-muted);">statementdog</span>
+      <a href="https://www.threads.net/@wukt999" target="_blank" rel="noopener">https://www.threads.net/@wukt999</a>
+    </div>
+    <div class="source-item">
+      <span class="source-media">Threads</span>
+      <span style="color:var(--text-muted);">statementdog</span>
+      <a href="https://www.threads.net/@freddy_biz_rsch" target="_blank" rel="noopener">https://www.threads.net/@freddy_biz_rsch</a>
+    </div>
+    <div class="source-item">
+      <span class="source-media">Threads</span>
+      <span style="color:var(--text-muted);">statementdog</span>
+      <a href="https://www.threads.net/@sparksparkfinance/post/DTwep5WkwaB" target="_blank" rel="noopener">https://www.threads.net/@sparksparkfinance/post/DTwep5WkwaB</a>
+    </div>
+    <div class="source-item">
+      <span class="source-media">Threads</span>
+      <span style="color:var(--text-muted);">statementdog</span>
+      <a href="https://www.threads.net/@skis.sk88" target="_blank" rel="noopener">https://www.threads.net/@skis.sk88</a>
+    </div>
+    <div class="source-item">
+      <span class="source-media">Threads</span>
+      <span style="color:var(--text-muted);">stock_wilsonrice</span>
+      <a href="https://www.threads.net/@statementdog" target="_blank" rel="noopener">https://www.threads.net/@statementdog</a>
+    </div>
+    <div class="source-item">
+      <span class="source-media">Threads</span>
+      <span style="color:var(--text-muted);">stock_wilsonrice</span>
+      <a href="https://www.threads.net/@wukt999" target="_blank" rel="noopener">https://www.threads.net/@wukt999</a>
+    </div>
+    <div class="source-item">
+      <span class="source-media">Threads</span>
+      <span style="color:var(--text-muted);">stock_wilsonrice</span>
+      <a href="https://www.threads.net/@freddy_biz_rsch" target="_blank" rel="noopener">https://www.threads.net/@freddy_biz_rsch</a>
+    </div>
+    <div class="source-item">
+      <span class="source-media">Threads</span>
+      <span style="color:var(--text-muted);">stock_wilsonrice</span>
+      <a href="https://www.threads.net/@mark_doctor.stock/post/C71i19ohdJ2" target="_blank" rel="noopener">https://www.threads.net/@mark_doctor.stock/post/C71i19ohdJ2</a>
+    </div>
+    <div class="source-item">
+      <span class="source-media">Threads</span>
+      <span style="color:var(--text-muted);">stock_wilsonrice</span>
+      <a href="https://www.threads.net/@skis.sk88" target="_blank" rel="noopener">https://www.threads.net/@skis.sk88</a>
+    </div></div>
+    </div>
+
+</div>
+</body>
+</html>

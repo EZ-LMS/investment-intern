@@ -1,0 +1,116 @@
+import { tavily } from '@tavily/core';
+import { askGemini } from '../utils/gemini.js';
+import { config } from '../config.js';
+import type { Company } from '../types.js';
+
+const client = tavily({ apiKey: config.tavilyApiKey });
+
+interface ExtractedMetrics {
+  ticker: string;
+  themeQuote: string;
+  latestRevenue: string;
+  previousGuidance: string;
+  latestGuidance: string;
+  sourceUrls: string[];
+}
+
+/**
+ * Enrich all companies in one Gemini call (batch).
+ * Fetches docs per company individually (Tavily), then sends all docs to Gemini at once.
+ */
+export async function enrichCompaniesWithDocs(companies: Company[], industryName: string): Promise<Company[]> {
+  if (companies.length === 0) return companies;
+
+  // ── Fetch docs for all companies (Tavily, no Gemini yet) ──
+  const docsMap: Record<string, { url: string; content: string }[]> = {};
+  for (const c of companies) {
+    docsMap[c.ticker] = await fetchEarningsDocs(c);
+    await new Promise((r) => setTimeout(r, 800));
+  }
+
+  // ── Build one combined prompt for all companies ──
+  const companyBlocks = companies.map((c) => {
+    const docs = docsMap[c.ticker] ?? [];
+    const docText = docs.map((d) => `[來源: ${d.url}]\n${d.content}`).join('\n---\n').slice(0, 6000);
+    return `### ${c.market === 'TW' ? c.ticker + ' ' : ''}${c.name} (${c.ticker})\n${docText || '（無法取得文件）'}`;
+  }).join('\n\n');
+
+  const prompt = `以下是多家公司的法說會或財報資料，請針對每一家公司提取資訊。
+
+${companyBlocks}
+
+---
+
+請針對「${industryName}」這個主題，對每家公司提取：
+1. themeQuote：與該主題相關的具體引用句子（1-2 句，若無則填 "未提及"）
+2. latestRevenue：最新一季實際營收（含單位，若無則填 "未提及"）
+3. previousGuidance：上一季的 Guidance 數字或描述（若無則填 "未提及"）
+4. latestGuidance：最新前瞻展望或 Guidance（若無則填 "未提及"）
+5. sourceUrls：最多 3 個來源 URL
+
+以 JSON 陣列格式回覆，順序與輸入相同：
+[
+  {
+    "ticker": "2330",
+    "themeQuote": "...",
+    "latestRevenue": "...",
+    "previousGuidance": "...",
+    "latestGuidance": "...",
+    "sourceUrls": ["url1"]
+  }
+]`;
+
+  let extracted: ExtractedMetrics[] = [];
+  try {
+    extracted = await askGemini<ExtractedMetrics[]>(prompt);
+  } catch (err) {
+    console.warn('[MetricsExtractor] Batch Gemini call failed:', err instanceof Error ? err.message : err);
+    // Return companies with doc sources only, no Gemini enrichment
+    return companies.map((c) => ({
+      ...c,
+      sources: (docsMap[c.ticker] ?? []).map((d) => d.url),
+    }));
+  }
+
+  // ── Merge results back into companies ──
+  return companies.map((c) => {
+    const result = extracted.find((r) => r.ticker === c.ticker);
+    return {
+      ...c,
+      sources: result?.sourceUrls ?? (docsMap[c.ticker] ?? []).map((d) => d.url),
+    };
+  });
+}
+
+async function fetchEarningsDocs(company: Company): Promise<{ url: string; content: string }[]> {
+  const queries =
+    company.market === 'US'
+      ? [
+          `${company.name} ${company.ticker} earnings call transcript 2025`,
+          `${company.name} investor relations quarterly report 2025`,
+        ]
+      : [
+          `${company.ticker} ${company.name} 法說會 簡報 2025`,
+          `${company.ticker} ${company.name} 財報 法說會 site:mops.twse.com.tw`,
+        ];
+
+  const docs: { url: string; content: string }[] = [];
+  for (const q of queries) {
+    try {
+      const res = await client.search(q, {
+        maxResults: 2,
+        searchDepth: 'advanced',
+        includeAnswer: false,
+      });
+      for (const item of res.results) {
+        if (item.content && item.content.length > 200) {
+          docs.push({ url: item.url, content: item.content.slice(0, 3000) });
+        }
+      }
+    } catch (err) {
+      console.warn(`[Metrics] Search failed for "${q}":`, err instanceof Error ? err.message : err);
+    }
+    await new Promise((r) => setTimeout(r, 800));
+  }
+  return docs.slice(0, 3);
+}

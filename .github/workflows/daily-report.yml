@@ -1,0 +1,40 @@
+name: Daily Investment Report
+
+on:
+  schedule:
+    - cron: '0 0 * * *'   # UTC 00:00 = Taiwan 08:00
+  workflow_dispatch:        # Allow manual trigger for testing
+
+jobs:
+  generate-report:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate dashboard
+        run: npm run generate
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+          GOOGLE_SHEETS_CSV_URL: ${{ secrets.GOOGLE_SHEETS_CSV_URL }}
+
+      - name: Commit and push dashboard
+        run: |
+          git config user.email "investment-bot@github-actions"
+          git config user.name "Investment Bot"
+          git add public/index.html
+          git diff --cached --quiet || git commit -m "chore: update dashboard $(date +'%Y-%m-%d %H:%M UTC')"
+          git push

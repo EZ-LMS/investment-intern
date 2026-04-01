@@ -1,0 +1,28 @@
+{
+  "name": "investment-intern",
+  "version": "1.0.0",
+  "description": "Daily investment research AI agent with supply-side structural analysis",
+  "type": "module",
+  "scripts": {
+    "generate": "tsx src/index.ts",
+    "dry-run": "tsx src/index.ts --dry-run"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@tavily/core": "^0.7.2",
+    "cheerio": "^1.2.0",
+    "csv-parse": "^6.1.0",
+    "date-fns": "^4.1.0",
+    "dotenv": "^17.3.1",
+    "pdf-parse": "^2.4.5",
+    "yahoo-finance2": "^2.11.3",
+    "youtube-transcript": "^1.2.1",
+    "yt-search": "^2.13.1"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.3",
+    "@types/yt-search": "^2.10.3",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}
