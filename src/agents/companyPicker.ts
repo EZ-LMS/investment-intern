@@ -1,6 +1,6 @@
 import { askGemini } from '../utils/gemini.js';
 import { fetchFinancials, normaliseTicker } from '../utils/finance.js';
-import type { Company, Industry } from '../types.js';
+import type { Company, Industry, IndustryKnowledge } from '../types.js';
 
 interface CompanyPickResult {
   twStocks: RawCompany[];
@@ -16,11 +16,15 @@ interface RawCompany {
   lowRevenueWarning: boolean;
 }
 
-export async function pickCompanies(industry: Industry): Promise<Company[]> {
+export async function pickCompanies(industry: Industry, knowledge?: IndustryKnowledge): Promise<Company[]> {
+  const knowledgeBlock = knowledge?.content
+    ? `\n以下是此產業的背景知識（供應鏈、主要業者、產業邏輯），請參考後選股：\n---\n${knowledge.content.slice(0, 3000)}\n---\n`
+    : '';
+
   const prompt = `你是一位專業投資分析師。
 
 產業：${industry.industry}
-供給限制原因：${industry.supplyConstraintReason}
+供給限制原因：${industry.supplyConstraintReason}${knowledgeBlock}
 
 請找出這個產業中，**市佔率或相關營收前三名**的公司，分別列出：
 - 台灣上市/上櫃股票（台股）top 3

@@ -8,9 +8,11 @@ import { collectThreads } from './collectors/threads.js';
 import { collectYouTube } from './collectors/youtube.js';
 import { collectNews } from './collectors/news.js';
 import { filterIndustries } from './agents/industryFilter.js';
+import { researchIndustries } from './agents/industryResearch.js';
 import { pickCompanies } from './agents/companyPicker.js';
 import { enrichCompaniesWithDocs } from './agents/metricsExtractor.js';
 import { checkCredibilityBatch } from './agents/credibilityCheck.js';
+import { appendHistory } from './agents/historyLog.js';
 import { generateDashboard } from './output/dashboard.js';
 import type { DashboardData, IndustryReport } from './types.js';
 
@@ -41,6 +43,14 @@ async function run(): Promise<void> {
   const filterResult = await filterIndustries(rawContents);
   console.log(`   Mode: ${filterResult.mode}, Industries found: ${filterResult.industries.length}`);
 
+  // ── Step 2.5: Industry research (knowledge base) ─────────────────────────
+  let industryKnowledgeMap = new Map();
+  if (filterResult.mode === 'structural' && filterResult.industries.length > 0) {
+    console.log('\n📚 Step 2.5: Researching industry knowledge base…');
+    industryKnowledgeMap = await researchIndustries(filterResult.industries);
+    console.log(`   Knowledge docs ready for ${industryKnowledgeMap.size} industries`);
+  }
+
   // ── Steps 3-5: Company picking, metrics, credibility ─────────────────────
   const reports: IndustryReport[] = [];
 
@@ -49,7 +59,8 @@ async function run(): Promise<void> {
       console.log(`\n📊 Processing industry: ${industry.industry}`);
 
       console.log('   Step 3: Picking companies…');
-      const companies = await pickCompanies(industry);
+      const knowledge = industryKnowledgeMap.get(industry.industry);
+      const companies = await pickCompanies(industry, knowledge);
       console.log(`   Found ${companies.length} companies`);
 
       console.log('   Step 4: Enriching with earnings docs (batch)…');
@@ -78,6 +89,10 @@ async function run(): Promise<void> {
   if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
   const outputPath = path.join(outputDir, 'index.html');
   fs.writeFileSync(outputPath, html, 'utf-8');
+
+  // ── Step 6.5: Append to history log ─────────────────────────────────────
+  console.log('\n📝 Step 6.5: Appending to history log…');
+  appendHistory(dashboardData);
 
   if (isDryRun) {
     console.log(`\n✅ Dry run complete. Dashboard written to: ${outputPath}`);

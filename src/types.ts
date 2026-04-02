@@ -67,3 +67,10 @@ export interface DashboardData {
   kolTopics: KolTopic[];
   rawSources: RawContent[];
 }
+
+export interface IndustryKnowledge {
+  industryName: string;
+  filePath: string;
+  content: string;
+  isNew: boolean;
+}
