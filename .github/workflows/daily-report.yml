@@ -25,13 +25,16 @@ jobs:
         run: npm ci
 
       - name: Generate dashboard
+        id: generate
         run: npm run generate
+        continue-on-error: true   # Pipeline failure won't block deploy
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
           GOOGLE_SHEETS_CSV_URL: ${{ secrets.GOOGLE_SHEETS_CSV_URL }}
 
       - name: Deploy to Vercel
+        if: always()   # Always deploy — even if pipeline failed, push last known good HTML
         run: |
           npx vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
           npx vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
@@ -41,6 +44,7 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
       - name: Commit and push knowledge base
+        if: steps.generate.outcome == 'success'   # Only commit when pipeline succeeded
         run: |
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
