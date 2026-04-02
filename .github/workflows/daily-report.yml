@@ -31,10 +31,19 @@ jobs:
           TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
           GOOGLE_SHEETS_CSV_URL: ${{ secrets.GOOGLE_SHEETS_CSV_URL }}
 
-      - name: Commit and push dashboard
+      - name: Deploy to Vercel
         run: |
-          git config user.email "investment-bot@github-actions"
-          git config user.name "Investment Bot"
+          npx vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+          npx vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+          npx vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Commit and push knowledge base
+        run: |
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
           git add public/index.html
           git add knowledge/ 2>/dev/null || true
           git diff --cached --quiet || git commit -m "chore: update dashboard $(date +'%Y-%m-%d %H:%M UTC')"
