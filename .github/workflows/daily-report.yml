@@ -36,10 +36,13 @@ jobs:
       - name: Deploy to Vercel
         if: always()   # Always deploy — even if pipeline failed, push last known good HTML
         run: |
-          # Manually create .vercel/output structure for static deployment
+          # Pull project settings first (creates .vercel/project.json)
+          npx vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+          # Build output structure manually for static deployment
           mkdir -p .vercel/output/static
           cp public/index.html .vercel/output/static/index.html
           echo '{"version":3}' > .vercel/output/config.json
+          # Deploy the prebuilt output
           npx vercel deploy --prebuilt --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
