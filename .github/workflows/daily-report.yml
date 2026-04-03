@@ -38,7 +38,8 @@ jobs:
         run: |
           npx vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
           npx vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
-          npx vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+          npx vercel deploy --prebuilt --prod --no-wait --token=${{ secrets.VERCEL_TOKEN }} || \
+          npx vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }} || true
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
