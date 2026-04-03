@@ -39,9 +39,7 @@ jobs:
           # Manually create .vercel/output structure for static deployment
           mkdir -p .vercel/output/static
           cp public/index.html .vercel/output/static/index.html
-          cat > .vercel/output/config.json << 'EOF'
-          {"version":3}
-          EOF
+          echo '{"version":3}' > .vercel/output/config.json
           npx vercel deploy --prebuilt --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
