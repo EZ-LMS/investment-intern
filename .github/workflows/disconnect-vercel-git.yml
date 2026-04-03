@@ -1,0 +1,22 @@
+name: Disconnect Vercel GitHub Integration (one-time)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  disconnect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Unlink GitHub repo from Vercel project
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X DELETE \
+            "https://api.vercel.com/v9/projects/${{ secrets.VERCEL_PROJECT_ID }}/link" \
+            -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
+            -H "Content-Type: application/json")
+          echo "Response status: $STATUS"
+          if [ "$STATUS" = "200" ] || [ "$STATUS" = "204" ]; then
+            echo "✅ Successfully disconnected GitHub integration from Vercel"
+          else
+            echo "❌ Unexpected status: $STATUS"
+            exit 1
+          fi
