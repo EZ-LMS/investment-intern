@@ -17,6 +17,7 @@ export async function collectThreads(sources: TrackingSource[]): Promise<RawCont
           maxResults: 5,
           searchDepth: 'basic',
           includeAnswer: false,
+          days: 7,
         }
       );
 

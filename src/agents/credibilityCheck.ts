@@ -5,6 +5,16 @@ import type { Company, CredibilityResult } from '../types.js';
 
 const client = tavily({ apiKey: config.tavilyApiKey });
 
+function getRecentQuarters(): { curQ: number; curY: number; prevQ: number; prevY: number } {
+  const now = new Date();
+  const month = now.getMonth() + 1;
+  const curQ = month <= 3 ? 4 : month <= 6 ? 1 : month <= 9 ? 2 : 3;
+  const curY = month <= 3 ? now.getFullYear() - 1 : now.getFullYear();
+  const prevQ = curQ === 1 ? 4 : curQ - 1;
+  const prevY = curQ === 1 ? curY - 1 : curY;
+  return { curQ, curY, prevQ, prevY };
+}
+
 /**
  * Check credibility for all companies in one Gemini call (batch).
  */
@@ -89,15 +99,16 @@ ${companyBlocks}
 }
 
 async function fetchPreviousEarnings(company: Company): Promise<string[]> {
+  const { curQ, curY, prevQ, prevY } = getRecentQuarters();
   const queries =
     company.market === 'US'
       ? [
-          `${company.name} ${company.ticker} Q4 2024 earnings results vs guidance`,
-          `${company.name} ${company.ticker} Q3 2024 earnings call guidance outlook`,
+          `${company.name} ${company.ticker} Q${curQ} ${curY} earnings results vs guidance`,
+          `${company.name} ${company.ticker} Q${prevQ} ${prevY} earnings call guidance outlook`,
         ]
       : [
-          `${company.ticker} ${company.name} 2024 第四季 法說會 指引`,
-          `${company.ticker} ${company.name} 2024 Q4 財報 法說會`,
+          `${company.ticker} ${company.name} ${curY} 第${curQ}季 法說會 指引`,
+          `${company.ticker} ${company.name} ${prevY} Q${prevQ} 財報 法說會`,
         ];
 
   const contents: string[] = [];
@@ -107,6 +118,7 @@ async function fetchPreviousEarnings(company: Company): Promise<string[]> {
         maxResults: 2,
         searchDepth: 'advanced',
         includeAnswer: false,
+        days: 180,
       });
       for (const item of res.results) {
         if (item.content && item.content.length > 200) {

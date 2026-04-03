@@ -33,6 +33,7 @@ export async function collectNews(sources: TrackingSource[]): Promise<RawContent
           maxResults: 5,
           searchDepth: 'basic',
           includeAnswer: false,
+          days: 7,
         });
 
         for (const item of res.results) {

@@ -122,6 +122,21 @@ export function generateDashboard(data: DashboardData): string {
   /* Divider */
   .industry-divider { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
 
+  /* Feedback */
+  .feedback-section { margin-top: 3rem; border-top: 1px solid var(--border); padding-top: 2rem; }
+  .feedback-section .section-title { margin-bottom: 0.4rem; }
+  .feedback-desc { font-size: 0.82rem; color: var(--text-muted); margin-bottom: 1rem; }
+  .feedback-textarea { width: 100%; min-height: 120px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 0.88rem; font-family: inherit; padding: 0.8rem 1rem; resize: vertical; outline: none; transition: border-color .2s; }
+  .feedback-textarea:focus { border-color: var(--accent); }
+  .feedback-actions { display: flex; gap: 0.75rem; margin-top: 0.75rem; flex-wrap: wrap; align-items: center; }
+  .btn { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.5rem 1.2rem; border-radius: 6px; font-size: 0.85rem; font-weight: 600; cursor: pointer; border: none; transition: opacity .15s; }
+  .btn:hover { opacity: 0.85; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-voice { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-voice.recording { background: var(--danger); color: #fff; border-color: var(--danger); }
+  .feedback-status { font-size: 0.78rem; color: var(--text-muted); }
+  .feedback-note { margin-top: 0.75rem; font-size: 0.75rem; color: var(--text-muted); background: var(--surface); border-left: 3px solid var(--accent); padding: 0.5rem 0.75rem; border-radius: 0 4px 4px 0; }
+
   @media (max-width: 600px) {
     .cred-body { grid-template-columns: 1fr; }
     .industry-meta { grid-template-columns: 1fr; }
@@ -142,6 +157,8 @@ export function generateDashboard(data: DashboardData): string {
   ${data.mode === 'structural' ? renderStructural(data) : renderKolSummary(data)}
 
   ${renderSources(data.rawSources)}
+
+  ${renderFeedback()}
 
 </div>
 </body>
@@ -304,6 +321,119 @@ function renderSources(rawSources: RawContent[]): string {
       <div class="section-title">原始資料來源</div>
       <div class="sources-list">${items}</div>
     </div>`;
+}
+
+function renderFeedback(): string {
+  return `
+  <div class="feedback-section">
+    <div class="section-title">💬 用戶回饋</div>
+    <p class="feedback-desc">有任何想法、補充資訊、或對產業 / 公司的看法？可以用文字或語音輸入，送出後會建立一個 GitHub Issue 供下次分析參考。</p>
+    <textarea id="feedback-text" class="feedback-textarea" placeholder="例如：我認為 XX 產業目前被低估，原因是…&#10;或：建議追蹤 XX 公司的法說會，他們最近提到…&#10;或：這個產業的上游供應商還有 XX，可以加入追蹤清單…"></textarea>
+    <div class="feedback-actions">
+      <button class="btn btn-voice" id="voice-btn" onclick="toggleVoice()" title="語音輸入（按下開始，再按停止）">
+        🎤 語音輸入
+      </button>
+      <button class="btn btn-primary" onclick="submitFeedback()">
+        📨 送出回饋
+      </button>
+      <span class="feedback-status" id="feedback-status"></span>
+    </div>
+    <p class="feedback-note">
+      ℹ️ 送出後會在新分頁開啟 GitHub Issue 頁面，確認內容後點「Submit new issue」完成送出。
+      系統會在下次分析時自動讀取 Open Issues 作為補充資訊來源。
+    </p>
+  </div>
+
+  <script>
+  // ── Voice input ──────────────────────────────────────────────────────────
+  let recognition = null;
+  let isRecording = false;
+
+  function toggleVoice() {
+    const btn = document.getElementById('voice-btn');
+    const status = document.getElementById('feedback-status');
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      status.textContent = '⚠️ 您的瀏覽器不支援語音輸入（建議使用 Chrome）';
+      return;
+    }
+
+    if (isRecording) {
+      recognition && recognition.stop();
+      return;
+    }
+
+    recognition = new SpeechRecognition();
+    recognition.lang = 'zh-TW';
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    const textarea = document.getElementById('feedback-text');
+    const baseText = textarea.value;
+    let interim = '';
+
+    recognition.onstart = () => {
+      isRecording = true;
+      btn.textContent = '⏹ 停止錄音';
+      btn.classList.add('recording');
+      status.textContent = '🔴 錄音中…';
+    };
+
+    recognition.onresult = (e) => {
+      interim = '';
+      let final = baseText;
+      for (let i = 0; i < e.results.length; i++) {
+        if (e.results[i].isFinal) {
+          final += e.results[i][0].transcript;
+        } else {
+          interim += e.results[i][0].transcript;
+        }
+      }
+      textarea.value = final + interim;
+    };
+
+    recognition.onend = () => {
+      isRecording = false;
+      btn.textContent = '🎤 語音輸入';
+      btn.classList.remove('recording');
+      status.textContent = '✅ 錄音結束';
+      setTimeout(() => { status.textContent = ''; }, 3000);
+    };
+
+    recognition.onerror = (e) => {
+      isRecording = false;
+      btn.textContent = '🎤 語音輸入';
+      btn.classList.remove('recording');
+      status.textContent = '❌ 錄音錯誤：' + e.error;
+    };
+
+    recognition.start();
+  }
+
+  // ── Submit feedback as GitHub Issue ─────────────────────────────────────
+  function submitFeedback() {
+    const text = document.getElementById('feedback-text').value.trim();
+    const status = document.getElementById('feedback-status');
+
+    if (!text) {
+      status.textContent = '⚠️ 請先輸入回饋內容';
+      setTimeout(() => { status.textContent = ''; }, 3000);
+      return;
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    const title = encodeURIComponent('用戶回饋 ' + today);
+    const body = encodeURIComponent(
+      '## 用戶回饋\n\n' + text +
+      '\n\n---\n_由 Investment Intern Dashboard 自動產生 @ ' + new Date().toLocaleString('zh-TW') + '_'
+    );
+    const labels = encodeURIComponent('user-feedback');
+
+    const url = 'https://github.com/EZ-LMS/investment-intern/issues/new?title=' + title + '&body=' + body + '&labels=' + labels;
+    window.open(url, '_blank');
+  }
+  </script>`;
 }
 
 function escHtml(str: string): string {

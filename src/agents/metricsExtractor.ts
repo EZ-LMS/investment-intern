@@ -5,6 +5,18 @@ import type { Company } from '../types.js';
 
 const client = tavily({ apiKey: config.tavilyApiKey });
 
+/** Returns the most recently completed quarter based on today's date.
+ *  Earnings are typically available ~6 weeks after quarter end. */
+function getRecentQuarters(): { curQ: number; curY: number; prevQ: number; prevY: number } {
+  const now = new Date();
+  const month = now.getMonth() + 1;
+  const curQ = month <= 3 ? 4 : month <= 6 ? 1 : month <= 9 ? 2 : 3;
+  const curY = month <= 3 ? now.getFullYear() - 1 : now.getFullYear();
+  const prevQ = curQ === 1 ? 4 : curQ - 1;
+  const prevY = curQ === 1 ? curY - 1 : curY;
+  return { curQ, curY, prevQ, prevY };
+}
+
 interface ExtractedMetrics {
   ticker: string;
   themeQuote: string;
@@ -83,15 +95,18 @@ ${companyBlocks}
 }
 
 async function fetchEarningsDocs(company: Company): Promise<{ url: string; content: string }[]> {
+  const { curQ, curY, prevQ, prevY } = getRecentQuarters();
   const queries =
     company.market === 'US'
       ? [
-          `${company.name} ${company.ticker} earnings call transcript 2025`,
-          `${company.name} investor relations quarterly report 2025`,
+          `${company.name} ${company.ticker} Q${curQ} ${curY} earnings call transcript`,
+          `${company.name} ${company.ticker} Q${prevQ} ${prevY} earnings results guidance`,
+          `${company.name} investor relations ${curY} annual report`,
         ]
       : [
-          `${company.ticker} ${company.name} 法說會 簡報 2025`,
-          `${company.ticker} ${company.name} 財報 法說會 site:mops.twse.com.tw`,
+          `${company.ticker} ${company.name} ${curY} Q${curQ} 法說會 簡報`,
+          `${company.ticker} ${company.name} ${curY} 第${curQ}季 財報 法說會`,
+          `${company.ticker} ${company.name} 法說會 site:mops.twse.com.tw`,
         ];
 
   const docs: { url: string; content: string }[] = [];
@@ -101,6 +116,7 @@ async function fetchEarningsDocs(company: Company): Promise<{ url: string; conte
         maxResults: 2,
         searchDepth: 'advanced',
         includeAnswer: false,
+        days: 90,
       });
       for (const item of res.results) {
         if (item.content && item.content.length > 200) {
