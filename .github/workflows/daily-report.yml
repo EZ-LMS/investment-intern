@@ -5,11 +5,14 @@ on:
     - cron: '0 0 * * *'   # UTC 00:00 = Taiwan 08:00
   workflow_dispatch:        # Allow manual trigger for testing
 
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
 jobs:
   generate-report:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
       - name: Checkout repo
@@ -33,23 +36,16 @@ jobs:
           TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
           GOOGLE_SHEETS_CSV_URL: ${{ secrets.GOOGLE_SHEETS_CSV_URL }}
 
-      - name: Deploy to Vercel
-        if: always()   # Always deploy — even if pipeline failed, push last known good HTML
-        run: |
-          # Pull project settings first (creates .vercel/project.json)
-          npx vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
-          # Build output structure manually for static deployment
-          mkdir -p .vercel/output/static
-          cp public/index.html .vercel/output/static/index.html
-          echo '{"version":3}' > .vercel/output/config.json
-          # Deploy the prebuilt output
-          npx vercel deploy --prebuilt --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      - name: Deploy to GitHub Pages
+        if: always()   # Always deploy — even if pipeline failed
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
+          keep_files: false
 
-      - name: Commit and push knowledge base
-        if: steps.generate.outcome == 'success'   # Only commit when pipeline succeeded
+      - name: Commit knowledge base back to main
+        if: steps.generate.outcome == 'success'
         run: |
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
