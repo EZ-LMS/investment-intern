@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Investment Intern — 每日投資報告</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3349;
+    --text: #e8eaf0;
+    --text-muted: #8b90a8;
+    --accent: #6c8cff;
+    --accent2: #40d9a0;
+    --warn: #ffb347;
+    --danger: #ff6b6b;
+    --conservative: #40d9a0;
+    --optimistic: #ff6b6b;
+    --accurate: #6c8cff;
+    --unknown: #8b90a8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 2rem 1rem; }
+
+  /* Header */
+  .header { border-bottom: 1px solid var(--border); padding-bottom: 1.5rem; margin-bottom: 2rem; }
+  .header h1 { font-size: 1.6rem; font-weight: 700; color: var(--text); letter-spacing: -0.02em; }
+  .header h1 span { color: var(--accent); }
+  .meta { margin-top: 0.5rem; color: var(--text-muted); font-size: 0.85rem; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+  .badge { font-size: 0.75rem; padding: 0.25rem 0.75rem; border-radius: 999px; font-weight: 600; letter-spacing: 0.03em; }
+  .badge-structural { background: #1a3a4a; color: var(--accent2); border: 1px solid var(--accent2); }
+  .badge-kol { background: #2a2040; color: var(--accent); border: 1px solid var(--accent); }
+
+  /* Sections */
+  .section { margin-bottom: 2.5rem; }
+  .section-title { font-size: 1.1rem; font-weight: 700; color: var(--text); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+  .section-title::before { content: ''; width: 3px; height: 1.1rem; background: var(--accent); border-radius: 2px; }
+
+  /* Industry card */
+  .industry-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 1rem; }
+  .industry-header { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; }
+  .industry-name { font-size: 1.15rem; font-weight: 700; color: var(--text); }
+  .confidence { font-size: 0.8rem; color: var(--text-muted); }
+  .confidence-bar { display: inline-flex; gap: 2px; margin-left: 6px; }
+  .confidence-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
+  .confidence-dot.filled { background: var(--accent2); }
+  .industry-meta { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem; margin-top: 0.75rem; }
+  .meta-item label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); display: block; margin-bottom: 2px; }
+  .meta-item p { font-size: 0.9rem; color: var(--text); }
+  .time-badge { display: inline-block; background: #1e2a1e; color: var(--accent2); border: 1px solid var(--accent2); border-radius: 6px; padding: 2px 10px; font-size: 0.85rem; font-weight: 600; }
+  .evidence { font-size: 0.85rem; color: var(--text-muted); border-left: 2px solid var(--border); padding-left: 0.75rem; margin-top: 0.75rem; font-style: italic; }
+
+  /* Company cards */
+  .companies-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1rem; }
+  .company-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; position: relative; }
+  .company-card.tw { border-top: 2px solid #ff9f43; }
+  .company-card.us { border-top: 2px solid var(--accent); }
+  .market-badge { font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 4px; position: absolute; top: 1rem; right: 1rem; }
+  .market-badge.tw { background: #3a2010; color: #ff9f43; }
+  .market-badge.us { background: #10203a; color: var(--accent); }
+  .company-ticker { font-size: 0.85rem; color: var(--text-muted); font-family: monospace; }
+  .company-name { font-size: 1.05rem; font-weight: 700; margin: 2px 0 8px; }
+  .company-rows { display: flex; flex-direction: column; gap: 5px; }
+  .company-row { display: flex; justify-content: space-between; font-size: 0.82rem; }
+  .company-row .label { color: var(--text-muted); }
+  .company-row .value { color: var(--text); text-align: right; }
+  .warn-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 0.72rem; background: #3a2b00; color: var(--warn); border: 1px solid var(--warn); border-radius: 4px; padding: 2px 8px; margin-top: 8px; }
+  .financials { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); display: flex; gap: 0.75rem; flex-wrap: wrap; }
+  .fin-item { font-size: 0.75rem; }
+  .fin-item .fin-label { color: var(--text-muted); }
+  .company-sources { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px; }
+  .source-link { font-size: 0.7rem; color: var(--accent); text-decoration: none; border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; }
+  .source-link:hover { background: var(--surface2); }
+
+  /* Credibility */
+  .credibility-list { display: flex; flex-direction: column; gap: 0.75rem; }
+  .cred-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.25rem; }
+  .cred-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; }
+  .cred-company { font-weight: 600; font-size: 0.95rem; }
+  .cred-type { font-size: 0.75rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
+  .cred-type.conservative { background: #0d2e1e; color: var(--conservative); border: 1px solid var(--conservative); }
+  .cred-type.optimistic { background: #2e0d0d; color: var(--optimistic); border: 1px solid var(--optimistic); }
+  .cred-type.accurate { background: #0d1a3a; color: var(--accurate); border: 1px solid var(--accurate); }
+  .cred-type.unknown { background: var(--surface2); color: var(--unknown); border: 1px solid var(--border); }
+  .cred-body { margin-top: 0.75rem; display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+  .cred-item label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); display: block; margin-bottom: 3px; }
+  .cred-item p { font-size: 0.82rem; color: var(--text); }
+  .cred-guidance { grid-column: 1 / -1; }
+
+  /* KOL Topics */
+  .kol-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+  .kol-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.1rem; }
+  .kol-topic { font-size: 1rem; font-weight: 700; margin-bottom: 6px; }
+  .kol-summary { font-size: 0.83rem; color: var(--text-muted); margin-bottom: 8px; }
+  .kol-companies { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+  .kol-company-tag { font-size: 0.72rem; background: var(--surface2); color: var(--accent); border-radius: 4px; padding: 2px 8px; }
+  .kol-sources { display: flex; flex-wrap: wrap; gap: 4px; }
+
+  /* Sources */
+  .sources-list { display: flex; flex-direction: column; gap: 0.4rem; }
+  .source-item { display: flex; align-items: baseline; gap: 0.5rem; font-size: 0.82rem; }
+  .source-media { font-size: 0.7rem; color: var(--text-muted); background: var(--surface2); padding: 1px 6px; border-radius: 3px; white-space: nowrap; }
+  .source-item a { color: var(--accent); text-decoration: none; word-break: break-all; }
+  .source-item a:hover { text-decoration: underline; }
+
+  /* Divider */
+  .industry-divider { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+
+  @media (max-width: 600px) {
+    .cred-body { grid-template-columns: 1fr; }
+    .industry-meta { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <h1>Investment <span>Intern</span></h1>
+    <div class="meta">
+      <span>📅 2026/04/02 下午04:56</span>
+      <span class="badge badge-structural">供給面結構性機會</span>
+    </div>
+  </div>
+
+  
+    <div class="section">
+      
+      
+    <div class="section-title">產業機會</div>
+    <div class="industry-card">
+      <div class="industry-header">
+        <div class="industry-name">2D NAND Flash</div>
+        <div class="confidence">信心 9/10 <span class="confidence-bar"><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot"></span></span></div>
+      </div>
+      <div class="industry-meta">
+        <div class="meta-item">
+          <label>供給限制原因</label>
+          <p>全球主要供應商日本鎧俠宣布全面停產2D NAND晶片，造成市場結構性缺口。</p>
+        </div>
+        <div class="meta-item">
+          <label>產能追上所需時間</label>
+          <p><span class="time-badge">約 2 年</span></p>
+        </div>
+      </div>
+      <div class="evidence">「2D NAND 晶片廣泛應用在 車載、消費性電子、嵌入式設備、工業工控等長生命週期產品 市場需求還是然相當龐大。」</div>
+    </div>
+      <div class="section-title" style="margin-top:1.5rem;">推薦股票</div>
+      <div class="companies-grid">
+        
+    <div class="company-card tw">
+      <span class="market-badge tw">台股</span>
+      <div class="company-ticker">2344</div>
+      <div class="company-name">華邦電子</div>
+      <div class="company-rows">
+        <div class="company-row"><span class="label">主題產品</span><span class="value">SLC NAND Flash 晶片 (主要為2D NAND)</span></div>
+        <div class="company-row"><span class="label">主題產品佔總營收</span><span class="value">約 10-15%</span></div>
+        <div class="company-row"><span class="label">產業市佔率</span><span class="value">特殊型SLC NAND市場主要供應商</span></div>
+      </div>
+      <div class="warn-badge">⚠️ 主題產品佔比偏低</div>
+      
+      <div class="company-sources"><a class="source-link" href="https://www.winbond.com/export/sites/winbond/about-winbond/investor/investor-conference/3Q25-investor-conference_CH_final.pdf" target="_blank" rel="noopener">來源1</a><a class="source-link" href="https://www.stockfeel.com.tw/%E8%8F%AF%E9%82%A6%E9%9B%BB-2025q4-%E6%B3%95%E8%AA%AA%E6%9C%83-%E9%87%8D%E9%BB%9E/" target="_blank" rel="noopener">來源2</a></div>
+    </div>
+    <div class="company-card tw">
+      <span class="market-badge tw">台股</span>
+      <div class="company-ticker">2337</div>
+      <div class="company-name">旺宏電子</div>
+      <div class="company-rows">
+        <div class="company-row"><span class="label">主題產品</span><span class="value">SLC NAND Flash 晶片 (主要為2D NAND)</span></div>
+        <div class="company-row"><span class="label">主題產品佔總營收</span><span class="value">約 10-15%</span></div>
+        <div class="company-row"><span class="label">產業市佔率</span><span class="value">特殊型SLC NAND市場主要供應商</span></div>
+      </div>
+      <div class="warn-badge">⚠️ 主題產品佔比偏低</div>
+      
+      <div class="company-sources"><a class="source-link" href="https://finmoconf.diveinvest.net/presentation/69021487bab52fb5c8be2cae" target="_blank" rel="noopener">來源1</a><a class="source-link" href="https://vocus.cc/article/6978dbeafd89780001ae6463" target="_blank" rel="noopener">來源2</a></div>
+    </div>
+    <div class="company-card us">
+      <span class="market-badge us">美股</span>
+      <div class="company-ticker">MU</div>
+      <div class="company-name">Micron Technology</div>
+      <div class="company-rows">
+        <div class="company-row"><span class="label">主題產品</span><span class="value">SLC NAND Flash 晶片 (用於工控、嵌入式、車載等)</span></div>
+        <div class="company-row"><span class="label">主題產品佔總營收</span><span class="value">約 5% 以下</span></div>
+        <div class="company-row"><span class="label">產業市佔率</span><span class="value">全球NAND前三大製造商之一，在2D NAND市場雖縮減但仍為重要供應商</span></div>
+      </div>
+      <div class="warn-badge">⚠️ 主題產品佔比偏低</div>
+      
+      <div class="company-sources"><a class="source-link" href="https://www.investing.com/news/transcripts/earnings-call-transcript-micron-q4-2025-beats-expectations-stock-dips-93CH-4274594" target="_blank" rel="noopener">來源1</a><a class="source-link" href="https://www.investing.com/news/transcripts/earnings-call-transcript-micron-technology-q4-2025-beats-eps-and-revenue-forecasts-93CH-4252280" target="_blank" rel="noopener">來源2</a><a class="source-link" href="https://investors.micron.com/static-files/5fb98d73-2134-4446-8d1b-0f90285f6c02" target="_blank" rel="noopener">來源3</a></div>
+    </div>
+    <div class="company-card us">
+      <span class="market-badge us">美股</span>
+      <div class="company-ticker">WDC</div>
+      <div class="company-name">Western Digital Corporation</div>
+      <div class="company-rows">
+        <div class="company-row"><span class="label">主題產品</span><span class="value">SLC NAND Flash 晶片 (用於工控、嵌入式、車載等)</span></div>
+        <div class="company-row"><span class="label">主題產品佔總營收</span><span class="value">約 5% 以下</span></div>
+        <div class="company-row"><span class="label">產業市佔率</span><span class="value">全球NAND前五大製造商之一，在2D NAND市場雖縮減但仍為重要供應商</span></div>
+      </div>
+      <div class="warn-badge">⚠️ 主題產品佔比偏低</div>
+      
+      <div class="company-sources"><a class="source-link" href="https://www.fool.com/earnings/call-transcripts/2025/01/29/western-digital-wdc-q2-2025-earnings-call-transcri/" target="_blank" rel="noopener">來源1</a><a class="source-link" href="https://fortune.com/company/western-digital/earnings/q4-2025/" target="_blank" rel="noopener">來源2</a><a class="source-link" href="https://finance.yahoo.com/news/western-digital-corp-wdc-q4-073152822.html" target="_blank" rel="noopener">來源3</a></div>
+    </div>
+      </div>
+      <div class="section-title" style="margin-top:1.5rem;">管理層評鑑</div>
+      <div class="credibility-list">
+        
+    <div class="cred-card">
+      <div class="cred-header">
+        <span class="cred-company">2344 華邦電子</span>
+        <span class="cred-type unknown">資料不足</span>
+      </div>
+      <div class="cred-body">
+        <div class="cred-item">
+          <label>上季 Guidance</label>
+          <p>展望未來一季 (Q3 2024)，我們仍假設 ASP 會合理微幅波動，但公司目標是透過內部改善，讓毛利率持續往上走。</p>
+        </div>
+        <div class="cred-item">
+          <label>本季實際</label>
+          <p>2025 年第四季單季營收 266.25 億元（季增 22.3%），單季 EPS 達 0.76 元，毛利率跳升至 41.9%。</p>
+        </div>
+        <div class="cred-item cred-guidance">
+          <label>最新前瞻展望</label>
+          <p>預期價格將自 2026 年上半年起持續走升。DDR3/DDR4 合約價走勢樂觀，訂單能見度佳；SLC NAND 供應緊縮也推升 2026 全年價格穩定上行。2026 年資本支出預計大幅增加至 421 億元（95% 用於設備），顯示公司對未來需求充滿信心。目前 Flash 與 CMS 擴產持續進行，預計今年下半年起階段性量產。 <a class="source-link" href="https://www.cmoney.tw/forum/article/176852300" target="_blank" rel="noopener">來源</a></p>
+        </div>
+      </div>
+    </div>
+    <div class="cred-card">
+      <div class="cred-header">
+        <span class="cred-company">2337 旺宏電子</span>
+        <span class="cred-type optimistic">樂觀型 (Overpromising)</span>
+      </div>
+      <div class="cred-body">
+        <div class="cred-item">
+          <label>上季 Guidance</label>
+          <p>市場先前把「轉盈」預期拉太前面，記憶體 super cycle、很快轉盈」的樂觀情緒。</p>
+        </div>
+        <div class="cred-item">
+          <label>本季實際</label>
+          <p>2025 年第三季，EPS 仍為 -0.47 元、連虧九季，且差於不少人預期。</p>
+        </div>
+        <div class="cred-item cred-guidance">
+          <label>最新前瞻展望</label>
+          <p>管理階層預期 2026 至 2027 年 將是營運爆發、極其忙碌的一段時間。啟動 220 億元資本支出，將 12 吋廠月產能從 2 萬片提升至 3 萬片。 <a class="source-link" href="https://stockgod.net/macronix-2337/" target="_blank" rel="noopener">來源</a></p>
+        </div>
+      </div>
+    </div>
+    <div class="cred-card">
+      <div class="cred-header">
+        <span class="cred-company">Micron Technology</span>
+        <span class="cred-type accurate">準確型</span>
+      </div>
+      <div class="cred-body">
+        <div class="cred-item">
+          <label>上季 Guidance</label>
+          <p>FQ1-25 Non-GAAP Outlook: Revenue $8.70 billion ± $200 million, Diluted earnings per share $1.74 ± $0.08</p>
+        </div>
+        <div class="cred-item">
+          <label>本季實際</label>
+          <p>earnings per share (EPS) of $1.79, Revenue ... reaching $8.71 billion</p>
+        </div>
+        <div class="cred-item cred-guidance">
+          <label>最新前瞻展望</label>
+          <p>未提及 <a class="source-link" href="https://www.investing.com/news/transcripts/earnings-call-transcript-micron-technologies-q4-2024-earnings-beat-expectations-93CH-3780303" target="_blank" rel="noopener">來源</a></p>
+        </div>
+      </div>
+    </div>
+    <div class="cred-card">
+      <div class="cred-header">
+        <span class="cred-company">Western Digital Corporation</span>
+        <span class="cred-type optimistic">樂觀型 (Overpromising)</span>
+      </div>
+      <div class="cred-body">
+        <div class="cred-item">
+          <label>上季 Guidance</label>
+          <p>EPS forecast of $1.88, revenue ... forecast of $4.28 billion</p>
+        </div>
+        <div class="cred-item">
+          <label>本季實際</label>
+          <p>EPS of $1.77, Total revenue for the quarter was $4,300,000,000</p>
+        </div>
+        <div class="cred-item cred-guidance">
+          <label>最新前瞻展望</label>
+          <p>未提及 <a class="source-link" href="https://www.investing.com/news/transcripts/earnings-call-transcript-western-digital-q4-2024-misses-eps-forecast-stock-rises-93CH-3838392" target="_blank" rel="noopener">來源</a></p>
+        </div>
+      </div>
+    </div>
+      </div>
+    </div>
+  
+    <div class="section">
+      <hr class="industry-divider">
+      
+    <div class="section-title">產業機會</div>
+    <div class="industry-card">
+      <div class="industry-header">
+        <div class="industry-name">化肥/農業投入品</div>
+        <div class="confidence">信心 8/10 <span class="confidence-bar"><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot"></span><span class="confidence-dot"></span></span></div>
+      </div>
+      <div class="industry-meta">
+        <div class="meta-item">
+          <label>供給限制原因</label>
+          <p>中東戰事導致全球1/3化肥海運受阻，尿素與氨價格飆升。</p>
+        </div>
+        <div class="meta-item">
+          <label>產能追上所需時間</label>
+          <p><span class="time-badge">約 2 年</span></p>
+        </div>
+      </div>
+      <div class="evidence">「氮肥是每季必須投入的養分，一旦短缺將直接導致下一季農作物減產、糧價飆升，這種通膨是Fed升息也無法解決的。」</div>
+    </div>
+      <div class="section-title" style="margin-top:1.5rem;">推薦股票</div>
+      <div class="companies-grid">
+        
+    <div class="company-card tw">
+      <span class="market-badge tw">台股</span>
+      <div class="company-ticker">1722</div>
+      <div class="company-name">台灣肥料</div>
+      <div class="company-rows">
+        <div class="company-row"><span class="label">主題產品</span><span class="value">各類氮磷鉀複合肥料、單一肥料（如硫酸銨、硝酸銨）、液體肥料</span></div>
+        <div class="company-row"><span class="label">主題產品佔總營收</span><span class="value">約 70-80%</span></div>
+        <div class="company-row"><span class="label">產業市佔率</span><span class="value">台灣市場龍頭/主要供應商</span></div>
+      </div>
+      
+      
+      <div class="company-sources"><a class="source-link" href="https://finmoconf.diveinvest.net/presentation/687b18f1a2ef6df0427f29b5" target="_blank" rel="noopener">來源1</a><a class="source-link" href="https://finmoconf.diveinvest.net/presentation/69285004bab52fb5c8792663" target="_blank" rel="noopener">來源2</a><a class="source-link" href="https://mops.twse.com.tw/mops/web/t05sr01_1?step=1&amp;SEQ_NO=2&amp;SPOKE_TIME=144506&amp;SPOKE_DATE=20170119&amp;·~&amp;COMPANY_ID=8210&amp;·~" target="_blank" rel="noopener">來源3</a></div>
+    </div>
+    <div class="company-card tw">
+      <span class="market-badge tw">台股</span>
+      <div class="company-ticker">1708</div>
+      <div class="company-name">東鹼</div>
+      <div class="company-rows">
+        <div class="company-row"><span class="label">主題產品</span><span class="value">硫酸鉀（鉀肥）</span></div>
+        <div class="company-row"><span class="label">主題產品佔總營收</span><span class="value">約 15-20%</span></div>
+        <div class="company-row"><span class="label">產業市佔率</span><span class="value">台灣硫酸鉀主要生產商之一</span></div>
+      </div>
+      <div class="warn-badge">⚠️ 主題產品佔比偏低</div>
+      
+      <div class="company-sources"><a class="source-link" href="https://money.udn.com/money/story/5612/9148225" target="_blank" rel="noopener">來源1</a></div>
+    </div>
+    <div class="company-card us">
+      <span class="market-badge us">美股</span>
+      <div class="company-ticker">NTR</div>
+      <div class="company-name">Nutrien Ltd.</div>
+      <div class="company-rows">
+        <div class="company-row"><span class="label">主題產品</span><span class="value">鉀肥、氮肥、磷肥及農業零售服務</span></div>
+        <div class="company-row"><span class="label">主題產品佔總營收</span><span class="value">約 90-100%</span></div>
+        <div class="company-row"><span class="label">產業市佔率</span><span class="value">全球鉀肥市佔率約20-25%，氮肥亦具規模 (市場前三)</span></div>
+      </div>
+      
+      
+      <div class="company-sources"><a class="source-link" href="https://www.fool.com/earnings/call-transcripts/2026/02/19/nutrien-ntr-q4-2025-earnings-call-transcript/" target="_blank" rel="noopener">來源1</a><a class="source-link" href="https://www.nutrien.com/news/events/2025-q4-earnings-conference-call" target="_blank" rel="noopener">來源2</a><a class="source-link" href="https://www.nutrien.com/news/press-releases/nutrien-reports-third-quarter-2025-results-1736" target="_blank" rel="noopener">來源3</a></div>
+    </div>
+    <div class="company-card us">
+      <span class="market-badge us">美股</span>
+      <div class="company-ticker">MOS</div>
+      <div class="company-name">The Mosaic Company</div>
+      <div class="company-rows">
+        <div class="company-row"><span class="label">主題產品</span><span class="value">磷肥、鉀肥</span></div>
+        <div class="company-row"><span class="label">主題產品佔總營收</span><span class="value">約 95-100%</span></div>
+        <div class="company-row"><span class="label">產業市佔率</span><span class="value">全球磷肥市佔率約10-15%，鉀肥亦具規模 (市場前三)</span></div>
+      </div>
+      
+      
+      <div class="company-sources"><a class="source-link" href="https://finance.yahoo.com/quote/MOS.MX/earnings/MOS.MX-Q3-2025-earnings_call-371408.html/" target="_blank" rel="noopener">來源1</a><a class="source-link" href="https://www.fool.com/earnings/call-transcripts/2026/02/25/mosaic-mos-q4-2025-earnings-call-transcript/" target="_blank" rel="noopener">來源2</a><a class="source-link" href="https://s1.q4cdn.com/823038994/files/doc_financials/2025/q4/Press-Release-Q4-2025-Exhibit-99-1-FINAL.pdf" target="_blank" rel="noopener">來源3</a></div>
+    </div>
+    <div class="company-card us">
+      <span class="market-badge us">美股</span>
+      <div class="company-ticker">OCI</div>
+      <div class="company-name">OCI N.V.</div>
+      <div class="company-rows">
+        <div class="company-row"><span class="label">主題產品</span><span class="value">氮肥（氨、尿素、UAN）、甲醇</span></div>
+        <div class="company-row"><span class="label">主題產品佔總營收</span><span class="value">約 80-90%</span></div>
+        <div class="company-row"><span class="label">產業市佔率</span><span class="value">全球氮肥主要生產商之一</span></div>
+      </div>
+      
+      
+      <div class="company-sources"><a class="source-link" href="https://oci-global.com/news-stories/press-releases/oci-global-reports-h2-2025-and-fy-2025-unaudited-results/" target="_blank" rel="noopener">來源1</a><a class="source-link" href="https://oci-global.com/results-and-presentations/" target="_blank" rel="noopener">來源2</a></div>
+    </div>
+      </div>
+      <div class="section-title" style="margin-top:1.5rem;">管理層評鑑</div>
+      <div class="credibility-list">
+        
+    <div class="cred-card">
+      <div class="cred-header">
+        <span class="cred-company">1722 台灣肥料</span>
+        <span class="cred-type unknown">資料不足</span>
+      </div>
+      <div class="cred-body">
+        <div class="cred-item">
+          <label>上季 Guidance</label>
+          <p>未提及</p>
+        </div>
+        <div class="cred-item">
+          <label>本季實際</label>
+          <p>未提及</p>
+        </div>
+        <div class="cred-item cred-guidance">
+          <label>最新前瞻展望</label>
+          <p>淨零目標：2024年碳排基準：437,694 tCO2e。短期目標（2025年）：減碳至43萬噸CO2e，減碳約1%（全面停用高碳排燃料）。中期目標（2030年）：減碳至23.9萬噸CO2e，減碳約46%（優於SBTi 2030年減量42%目標）。長期目標（2040年）：減碳至7.5萬噸CO2e，減碳約83%。最終目標（2050年）：持續佈局綠色供應鏈，並藉由碳權管理達成淨零。關鍵里程碑：2045年完成涵蓋生產、運輸、儲存、使用的氨能供應平台。不動產開發收益：南港C2旅館及辦公大樓已於2023年完工並陸續出租營業，且B棟辦公大樓2025年Q3進駐率達9成以上，A、C棟旅館也分別於2023年Q4試營運及2025年5月出租。策略轉型：公司已將「乾淨能源產業」確立為第五個事業主軸，並將於2025年推出全台首批認證藍氨，助力半導體業者邁入淨零。股利政策：過去幾年均維持穩定配息。 <a class="source-link" href="https://poorstock.com/earningcall/1722" target="_blank" rel="noopener">來源</a></p>
+        </div>
+      </div>
+    </div>
+    <div class="cred-card">
+      <div class="cred-header">
+        <span class="cred-company">1708 東鹼</span>
+        <span class="cred-type unknown">資料不足</span>
+      </div>
+      <div class="cred-body">
+        <div class="cred-item">
+          <label>上季 Guidance</label>
+          <p>未提及</p>
+        </div>
+        <div class="cred-item">
+          <label>本季實際</label>
+          <p>前三季獲利翻倍躍進。航運營收占比近30％，今年因大宗物資需求增加而上漲，營收年增3.46％。</p>
+        </div>
+        <div class="cred-item cred-guidance">
+          <label>最新前瞻展望</label>
+          <p>東鹼明年營運看俏。配合國內半導體業的需求，拓展液體氯化鈣產品，除增加獲利外，對國內半導體業的發展亦多有貢獻。隨國內晶圓廠擴建帶動需求，有助東鹼明年液體氯化鈣銷量提升，搭配除硫酸鉀、航運市況持穩推進，整體營運有望更上層樓。航運基本面有支撐，樂觀看散裝航運市場。明年全球硫酸鉀價格預期會回到過往水平，產品及原料的價差將會縮小，但仍看好市場需求，有助增添支撐力。紅海危機、烏俄及中東糾紛讓運力效率下降，船租受到支撐，預期影響會持續到2025年。 <a class="source-link" href="https://tw.stock.yahoo.com/news/%E6%9D%B1%E9%B9%B1%E6%98%8E%E5%B9%B4%E7%87%9F%E9%81%8B%E7%9C%8B%E4%BF%8F-201000533.html" target="_blank" rel="noopener">來源</a></p>
+        </div>
+      </div>
+    </div>
+    <div class="cred-card">
+      <div class="cred-header">
+        <span class="cred-company">Nutrien Ltd.</span>
+        <span class="cred-type accurate">準確型</span>
+      </div>
+      <div class="cred-body">
+        <div class="cred-item">
+          <label>上季 Guidance</label>
+          <p>Nitrogen sales volume guidance was lowered to 10.6 to 10.8 million tonnes due to extended turnarounds and unplanned outages in the third quarter, including the impact of weather-related events. Phosphate sales volume guidance was lowered to 2.4 to 2.5 million tonnes due to weather-related production impacts in the second half of 2024. Effective tax rate on adjusted net earnings guidance was lowered primarily due to a change in our expected geographic mix of earnings. (These were 2024 full-year guidances as of Q3 2024).</p>
+        </div>
+        <div class="cred-item">
+          <label>本季實際</label>
+          <p>For full year 2024: Nitrogen sales volumes 10.7 million tonnes, Phosphate sales volumes 2.4 million tonnes, Effective tax rate on adjusted net earnings 24.1%. Q4 2024: net earnings of $118 million ($0.23 diluted net earnings per share). Fourth quarter 2024 adjusted EBITDA was $1.1 billion and adjusted net earnings per share was $0.31.</p>
+        </div>
+        <div class="cred-item cred-guidance">
+          <label>最新前瞻展望</label>
+          <p>2025 Guidance Ranges 1 as of February 19, 2025 (billions of US dollars, except as otherwise noted): Retail adjusted EBITDA 1.65 - 1.85; Potash sales volumes (million tonnes) 13.6 - 14.4; Nitrogen sales volumes (million tonnes) 10.7 - 11.2; Phosphate sales volumes (million tonnes) 2.35 - 2.55; Depreciation and amortization 2.35 - 2.45; Finance costs 0.65 - 0.75; Effective tax rate on adjusted net earnings (%) 22.0 - 25.0; Capital expenditures 2.0 - 2.1. <a class="source-link" href="https://www.nutrien.com/news/press-releases/nutrien-reports-fourth-quarter-and-full-year-2024-results-1717" target="_blank" rel="noopener">來源</a></p>
+        </div>
+      </div>
+    </div>
+    <div class="cred-card">
+      <div class="cred-header">
+        <span class="cred-company">The Mosaic Company</span>
+        <span class="cred-type unknown">資料不足</span>
+      </div>
+      <div class="cred-body">
+        <div class="cred-item">
+          <label>上季 Guidance</label>
+          <p>For the fourth quarter, we expect potash sales volumes in the range of 2.2 million to 2.4 million tons and prices in the range of $200 to $220 per ton.</p>
+        </div>
+        <div class="cred-item">
+          <label>本季實際</label>
+          <p>Full year 2024: Net income $175 million, diluted EPS $0.55, Adjusted EBITDA $2.2 billion, Adjusted diluted EPS $1.98. Fourth quarter 2024: Net income $169 million, diluted EPS $0.53, Adjusted EBITDA $594 million, Adjusted diluted EPS $0.45. (No specific Q4 potash sales volume provided to compare with guidance).</p>
+        </div>
+        <div class="cred-item cred-guidance">
+          <label>最新前瞻展望</label>
+          <p>we expect demand will remain solid in 2025 as nutrients are replenished. <a class="source-link" href="https://www.sec.gov/Archives/edgar/data/1285785/000162828025008617/pressreleaseq42024-ex991.htm" target="_blank" rel="noopener">來源</a></p>
+        </div>
+      </div>
+    </div>
+    <div class="cred-card">
+      <div class="cred-header">
+        <span class="cred-company">OCI N.V.</span>
+        <span class="cred-type unknown">資料不足</span>
+      </div>
+      <div class="cred-body">
+        <div class="cred-item">
+          <label>上季 Guidance</label>
+          <p>未提及</p>
+        </div>
+        <div class="cred-item">
+          <label>本季實際</label>
+          <p>未提及</p>
+        </div>
+        <div class="cred-item cred-guidance">
+          <label>最新前瞻展望</label>
+          <p>OCI's primary focus will be on executing outstanding transaction and project deliverables, and positioning itself to capture emerging opportunities. This includes finalizing the OCI Methanol transaction, achieving Project Completion for OCI Clean Ammonia, and returning up to a further USD 1 billion of... (incomplete sentence). We were still high resulting in a high cost of capital for acquisitions, capital projects and debt refinancing. This could therefore have an adverse impact on our business prospects, financial ratios, earnings and/or our financial position. <a class="source-link" href="https://investors.oci-global.com/sites/default/files/2025-03/OCI-Annual-Report-2024_0.pdf" target="_blank" rel="noopener">來源</a></p>
+        </div>
+      </div>
+    </div>
+      </div>
+    </div>
+  
+    <div class="section">
+      <hr class="industry-divider">
+      
+    <div class="section-title">產業機會</div>
+    <div class="industry-card">
+      <div class="industry-header">
+        <div class="industry-name">高階PCB/CCL/銅箔 (AI伺服器與光模組)</div>
+        <div class="confidence">信心 9/10 <span class="confidence-bar"><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot filled"></span><span class="confidence-dot"></span></span></div>
+      </div>
+      <div class="industry-meta">
+        <div class="meta-item">
+          <label>供給限制原因</label>
+          <p>AI伺服器與光模組對高階材料與製程需求遽增，載板T布與銅箔出現嚴重缺貨，具備mSAP製程能力的廠商有限。</p>
+        </div>
+        <div class="meta-item">
+          <label>產能追上所需時間</label>
+          <p><span class="time-badge">約 2 年</span></p>
+        </div>
+      </div>
+      <div class="evidence">「載板 T布： 目前呈現嚴重缺貨，可能導致載板出貨不順，反而有機會促使載板漲價與相關公司獲利上修。」、「800G光模組用量將從2025年的2000萬顆成長至2027年的6000萬顆； 1.6T光模組用量更將從2025年的200萬顆飆升至2027年的7000萬顆，進入快速成長期。」</div>
+    </div>
+      <div class="section-title" style="margin-top:1.5rem;">推薦股票</div>
+      <div class="companies-grid">
+        
+    <div class="company-card tw">
+      <span class="market-badge tw">台股</span>
+      <div class="company-ticker">3037</div>
+      <div class="company-name">欣興</div>
+      <div class="company-rows">
+        <div class="company-row"><span class="label">主題產品</span><span class="value">ABF載板 (用於AI GPU/CPU封裝)</span></div>
+        <div class="company-row"><span class="label">主題產品佔總營收</span><span class="value">約 30-40%</span></div>
+        <div class="company-row"><span class="label">產業市佔率</span><span class="value">ABF載板全球市佔龍頭，高階AI載板市場前二</span></div>
+      </div>
+      
+      
+      <div class="company-sources"><a class="source-link" href="https://www.stockfeel.com.tw/%E6%AC%A3%E8%88%88-2025q4-%E6%B3%95%E8%AA%AA%E6%9C%83-%E9%87%8D%E9%BB%9E/" target="_blank" rel="noopener">來源1</a><a class="source-link" href="https://vocus.cc/article/69a578e9fd89780001cb3554" target="_blank" rel="noopener">來源2</a></div>
+    </div>
+    <div class="company-card tw">
+      <span class="market-badge tw">台股</span>
+      <div class="company-ticker">2383</div>
+      <div class="company-name">台光電</div>
+      <div class="company-rows">
+        <div class="company-row"><span class="label">主題產品</span><span class="value">極低損耗CCL (用於AI伺服器、800G/1.6T光模組)</span></div>
+        <div class="company-row"><span class="label">主題產品佔總營收</span><span class="value">約 50-60%</span></div>
+        <div class="company-row"><span class="label">產業市佔率</span><span class="value">高速/極低損耗CCL全球市佔龍頭</span></div>
+      </div>
+      
+      
+      <div class="company-sources"><a class="source-link" href="https://poorstock.com/earningcall/2383" target="_blank" rel="noopener">來源1</a></div>
+    </div>
+    <div class="company-card tw">
+      <span class="market-badge tw">台股</span>
+      <div class="company-ticker">2368</div>
+      <div class="company-name">金像電</div>
+      <div class="company-rows">
+        <div class="company-row"><span class="label">主題產品</span><span class="value">AI伺服器主機板與加速卡PCB</span></div>
+        <div class="company-row"><span class="label">主題產品佔總營收</span><span class="value">約 40-50%</span></div>
+        <div class="company-row"><span class="label">產業市佔率</span><span class="value">AI伺服器主機板PCB主要供應商之一</span></div>
+      </div>
+      
+      
+      <div class="company-sources"><a class="source-link" href="https://finmoconf.diveinvest.net/presentation/6929a184bab52fb5c889269c" target="_blank" rel="noopener">來源1</a><a class="source-link" href="https://blog.fugle.tw/post/earnings-call-2368-2025-11-28" target="_blank" rel="noopener">來源2</a></div>
+    </div>
+      </div>
+      <div class="section-title" style="margin-top:1.5rem;">管理層評鑑</div>
+      <div class="credibility-list">
+        
+    <div class="cred-card">
+      <div class="cred-header">
+        <span class="cred-company">3037 欣興</span>
+        <span class="cred-type unknown">資料不足</span>
+      </div>
+      <div class="cred-body">
+        <div class="cred-item">
+          <label>上季 Guidance</label>
+          <p>未提及</p>
+        </div>
+        <div class="cred-item">
+          <label>本季實際</label>
+          <p>Q4 營收 346.9 億元，毛利率 15.8%；ABF 稼動率大幅回升至 90%。</p>
+        </div>
+        <div class="cred-item cred-guidance">
+          <label>最新前瞻展望</label>
+          <p>Q1 (2026) 稼動率維持 &gt;90%，預估營收逆勢季增。預期 2026 年全公司 AI 營收佔比將高達 60% 以上。2026 資本支出大舉上修至 340 億元，其中 70% 投入 ABF (原定的 2026 年資本預算為 254 億元)。 <a class="source-link" href="https://vocus.cc/article/69c93f26fd89780001b19b54" target="_blank" rel="noopener">來源</a></p>
+        </div>
+      </div>
+    </div>
+    <div class="cred-card">
+      <div class="cred-header">
+        <span class="cred-company">2383 台光電</span>
+        <span class="cred-type unknown">資料不足</span>
+      </div>
+      <div class="cred-body">
+        <div class="cred-item">
+          <label>上季 Guidance</label>
+          <p>未提及</p>
+        </div>
+        <div class="cred-item">
+          <label>本季實際</label>
+          <p>2025 年獲利強勁，公司已是全球第一的 mSAP / HDI laminate 供應商與 High-Speed Green Laminate 供應商，高速材料市佔率明顯上升。</p>
+        </div>
+        <div class="cred-item cred-guidance">
+          <label>最新前瞻展望</label>
+          <p>AI 需求爆發，高速高階材料滲透率提升，ASP 上升，市佔率擴大，產能持續擴張。高階銅箔基板市場 2024–2027 年 CAGR 約 40%，AI 銅箔基板市場 2025–2027 年 CAGR 更高達 178%，台光電自身成長率將高於高階 CCL 整體市場。總產能規劃從 2024 年 4.35M 張/月，拉升到 2027 年 9.45M 張/月。2026 年漲價可望順利反映在毛利率上，高階材料占比持續提升，新產能開出後稼動率維持高檔。預期在 2026 年 NVIDIA Rubin 新平台中具備獨佔性地位。 <a class="source-link" href="https://brodoginvestment.substack.com/p/2025-q4" target="_blank" rel="noopener">來源</a></p>
+        </div>
+      </div>
+    </div>
+    <div class="cred-card">
+      <div class="cred-header">
+        <span class="cred-company">2368 金像電</span>
+        <span class="cred-type unknown">資料不足</span>
+      </div>
+      <div class="cred-body">
+        <div class="cred-item">
+          <label>上季 Guidance</label>
+          <p>未提及</p>
+        </div>
+        <div class="cred-item">
+          <label>本季實際</label>
+          <p>2025 Q3 營收 176.8 億元，毛利率 35.60%，稅前淨利 47.3 億元。2025 Q1~Q3 累計營業收入 435.96 億元，營業毛利 141.59 億元，毛利率 32.5%，稅前淨利 98.91 億元，EPS 13.61 元。</p>
+        </div>
+        <div class="cred-item cred-guidance">
+          <label>最新前瞻展望</label>
+          <p>2025 Q4 營收 98.5 億元 (Y2024 Q4) 年成長率預計 67% (Y2025 Q4)，稅前淨利預計 42.8 億元，毛利率 33.66%。 <a class="source-link" href="https://finmoconf.diveinvest.net/presentation/6929a184bab52fb5c889269c" target="_blank" rel="noopener">來源</a></p>
+        </div>
+      </div>
+    </div>
+      </div>
+    </div>
+  
+
+  
+    <div class="section">
+      <div class="section-title">原始資料來源</div>
+      <div class="sources-list">
+    <div class="source-item">
+      <span class="source-media">Threads</span>
+      <span style="color:var(--text-muted);">wjsfinance</span>
+      <a href="https://www.threads.net/@wukt999" target="_blank" rel="noopener">https://www.threads.net/@wukt999</a>
+    </div>
+    <div class="source-item">
+      <span class="source-media">Threads</span>
+      <span style="color:var(--text-muted);">wjsfinance</span>
+      <a href="https://www.threads.net/@wukt999/post/C8o79FyP1O_" target="_blank" rel="noopener">https://www.threads.net/@wukt999/post/C8o79FyP1O_</a>
+    </div>
+    <div class="source-item">
+      <span class="source-media">Threads</span>
+      <span style="color:var(--text-muted);">wjsfinance</span>
+      <a href="https://www.threads.net/@sparksparkfinance/post/DTwep5WkwaB" target="_blank" rel="noopener">https://www.threads.net/@sparksparkfinance/post/DTwep5WkwaB</a>
+    </div>
+    <div class="source-item">
+      <span class="source-media">Threads</span>
+      <span style="color:var(--text-muted);">wjsfinance</span>
+      <a href="https://www.threads.net/@hungrymo_0501/post/DHdsZCJzxDw" target="_blank" rel="noopener">https://www.threads.net/@hungrymo_0501/post/DHdsZCJzxDw</a>
+    </div>
+    <div class="source-item">
+      <span class="source-media">Threads</span>
+      <span style="color:var(--text-muted);">wjsfinance</span>
+      <a href="https://www.threads.net/@ministone999/post/DFOVloRzmkm" target="_blank" rel="noopener">https://www.threads.net/@ministone999/post/DFOVloRzmkm</a>
+    </div>
+    <div class="source-item">
+      <span class="source-media">Threads</span>
+      <span style="color:var(--text-muted);">stock_wilsonrice</span>
+      <a href="https://www.threads.net/@wukt999" target="_blank" rel="noopener">https://www.threads.net/@wukt999</a>
+    </div>
+    <div class="source-item">
+      <span class="source-media">Threads</span>
+      <span style="color:var(--text-muted);">stock_wilsonrice</span>
+      <a href="https://www.threads.net/@hungrymo_0501/post/DHdsZCJzxDw" target="_blank" rel="noopener">https://www.threads.net/@hungrymo_0501/post/DHdsZCJzxDw</a>
+    </div>
+    <div class="source-item">
+      <span class="source-media">Threads</span>
+      <span style="color:var(--text-muted);">stock_wilsonrice</span>
+      <a href="https://www.threads.net/@wukt999/post/C8o79FyP1O_" target="_blank" rel="noopener">https://www.threads.net/@wukt999/post/C8o79FyP1O_</a>
+    </div>
+    <div class="source-item">
+      <span class="source-media">Threads</span>
+      <span style="color:var(--text-muted);">stock_wilsonrice</span>
+      <a href="https://www.threads.net/@ministone999/post/DFOVloRzmkm" target="_blank" rel="noopener">https://www.threads.net/@ministone999/post/DFOVloRzmkm</a>
+    </div>
+    <div class="source-item">
+      <span class="source-media">Threads</span>
+      <span style="color:var(--text-muted);">stock_wilsonrice</span>
+      <a href="https://www.threads.net/@sparksparkfinance/post/DTwep5WkwaB" target="_blank" rel="noopener">https://www.threads.net/@sparksparkfinance/post/DTwep5WkwaB</a>
+    </div>
+    <div class="source-item">
+      <span class="source-media">YT</span>
+      <span style="color:var(--text-muted);">股癌</span>
+      <a href="https://www.youtube.com/watch?v=5_9KlpN9C_Y" target="_blank" rel="noopener">https://www.youtube.com/watch?v=5_9KlpN9C_Y</a>
+    </div>
+    <div class="source-item">
+      <span class="source-media">Podcast</span>
+      <span style="color:var(--text-muted);">股癌</span>
+      <a href="https://podcasts.apple.com/tw/podcast/gooaye-%E8%82%A1%E7%99%8C/id1500839292" target="_blank" rel="noopener">https://podcasts.apple.com/tw/podcast/gooaye-%E8%82%A1%E7%99%8C/id1500839292</a>
+    </div></div>
+    </div>
+
+</div>
+</body>
+</html>
