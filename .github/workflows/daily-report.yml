@@ -35,11 +35,7 @@ jobs:
 
       - name: Deploy to Vercel
         if: always()   # Always deploy — even if pipeline failed, push last known good HTML
-        run: |
-          npx vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
-          npx vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
-          npx vercel deploy --prebuilt --prod --no-wait --token=${{ secrets.VERCEL_TOKEN }} || \
-          npx vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }} || true
+        run: npx vercel deploy --prod --yes --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
