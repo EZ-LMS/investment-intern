@@ -7,19 +7,19 @@ function requireEnv(key: string): string {
 }
 
 export const config = {
-  geminiApiKey: requireEnv('GEMINI_API_KEY'),
+  // ── API keys ──────────────────────────────────────────────────────────────
+  groqApiKey: requireEnv('GROQ_API_KEY'),
   tavilyApiKey: requireEnv('TAVILY_API_KEY'),
   googleSheetsCsvUrl: requireEnv('GOOGLE_SHEETS_CSV_URL'),
 
-  // Search keywords for supply-side signals
+  // ── LLM settings (Groq free tier: 14,400 req/day, 30 RPM) ────────────────
+  // llama-3.3-70b-versatile: 128k context, best for Chinese instruction-following
+  llmModel: 'llama-3.3-70b-versatile',
+
+  // 2.5s between calls to stay safely under 30 RPM
+  llmDelay: 2500,
+
+  // ── Search settings ───────────────────────────────────────────────────────
   supplyKeywords: '供給 OR 缺貨 OR 擴產 OR 週期 OR 報價 OR shortage OR capacity OR supply constraint',
-
-  // How many hours back to look for content
   lookbackHours: 48,
-
-  // Gemini model
-  geminiModel: 'gemini-2.5-flash',
-
-  // Delays (ms) to respect Gemini free tier RPM limits
-  geminiDelay: 5000,
 } as const;

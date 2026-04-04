@@ -1,5 +1,5 @@
 import { tavily } from '@tavily/core';
-import { askGemini } from '../utils/gemini.js';
+import { askLLM } from '../utils/llm.js';
 import { config } from '../config.js';
 import type { Company, CredibilityResult } from '../types.js';
 
@@ -78,7 +78,7 @@ ${companyBlocks}
   }> = [];
 
   try {
-    results = await askGemini(prompt);
+    results = await askLLM(prompt);
   } catch (err) {
     console.warn('[Credibility] Batch Gemini call failed:', err instanceof Error ? err.message : err);
   }

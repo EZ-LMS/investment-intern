@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { tavily } from '@tavily/core';
-import { askGemini } from '../utils/gemini.js';
+import { askLLM } from '../utils/llm.js';
 import { config } from '../config.js';
 import type { Industry } from '../types.js';
 
@@ -145,11 +145,10 @@ ${isUpdate ? `\n以下是舊版報告（請更新並保留有價值的資訊）�
 ${isUpdate ? extractUpdateLog(existingContent ?? '') : ''}`;
 
   try {
-    const rawMd = await askGemini<string>(prompt);
-    // If Gemini returned a string inside a JSON string (due to responseMimeType), unwrap it
+    const rawMd = await askLLM<string>(prompt, 'text');
     return typeof rawMd === 'string' ? rawMd : JSON.stringify(rawMd, null, 2);
   } catch (err) {
-    console.warn(`   [Research] Gemini failed for ${industry.industry}:`, err instanceof Error ? err.message : err);
+    console.warn(`   [Research] LLM failed for ${industry.industry}:`, err instanceof Error ? err.message : err);
     // Return a minimal placeholder
     return `# ${industry.industry} 產業研究報告\n\n> 最後更新：${today} ｜ 建立：${createdDate}\n\n（Gemini 分析暫時失敗，下次更新時重試）\n\n## 更新日誌\n| 日期 | 摘要 |\n|------|------|\n| ${today} | 初始建立（失敗） |\n`;
   }

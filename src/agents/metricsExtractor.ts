@@ -1,5 +1,5 @@
 import { tavily } from '@tavily/core';
-import { askGemini } from '../utils/gemini.js';
+import { askLLM } from '../utils/llm.js';
 import { config } from '../config.js';
 import type { Company } from '../types.js';
 
@@ -74,7 +74,7 @@ ${companyBlocks}
 
   let extracted: ExtractedMetrics[] = [];
   try {
-    extracted = await askGemini<ExtractedMetrics[]>(prompt);
+    extracted = await askLLM<ExtractedMetrics[]>(prompt);
   } catch (err) {
     console.warn('[MetricsExtractor] Batch Gemini call failed:', err instanceof Error ? err.message : err);
     // Return companies with doc sources only, no Gemini enrichment

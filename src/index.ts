@@ -14,6 +14,7 @@ import { pickCompanies } from './agents/companyPicker.js';
 import { enrichCompaniesWithDocs } from './agents/metricsExtractor.js';
 import { checkCredibilityBatch } from './agents/credibilityCheck.js';
 import { appendHistory } from './agents/historyLog.js';
+import { runFeedbackDigest } from './agents/feedbackDigest.js';
 import { generateDashboard } from './output/dashboard.js';
 import type { DashboardData, IndustryReport } from './types.js';
 
@@ -95,6 +96,10 @@ async function run(): Promise<void> {
   // ── Step 6.5: Append to history log ─────────────────────────────────────
   console.log('\n📝 Step 6.5: Appending to history log…');
   appendHistory(dashboardData);
+
+  // ── Step 6.6: Consolidate user feedback into digest MD ───────────────────
+  console.log('\n🗂  Step 6.6: Running feedback digest…');
+  await runFeedbackDigest();
 
   if (isDryRun) {
     console.log(`\n✅ Dry run complete. Dashboard written to: ${outputPath}`);

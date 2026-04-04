@@ -1,4 +1,4 @@
-import { askGemini } from '../utils/gemini.js';
+import { askLLM } from '../utils/llm.js';
 import { fetchFinancials, normaliseTicker } from '../utils/finance.js';
 import type { Company, Industry, IndustryKnowledge } from '../types.js';
 
@@ -64,7 +64,7 @@ export async function pickCompanies(industry: Industry, knowledge?: IndustryKnow
   ]
 }`;
 
-  const raw = await askGemini<CompanyPickResult>(prompt);
+  const raw = await askLLM<CompanyPickResult>(prompt);
   const allRaw = [
     ...(raw.twStocks ?? []).slice(0, 3).map((c) => ({ ...c, market: 'TW' as const })),
     ...(raw.usStocks ?? []).slice(0, 3).map((c) => ({ ...c, market: 'US' as const })),

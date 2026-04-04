@@ -1,4 +1,4 @@
-import { askGemini } from '../utils/gemini.js';
+import { askLLM } from '../utils/llm.js';
 import type { Industry, KolTopic, RawContent } from '../types.js';
 
 interface FilterResult {
@@ -71,7 +71,7 @@ ${contentBlock}
 - kolTopics 在 mode="kol-summary" 時最多 5 個主題，mode="structural" 時也可附上 1-2 個作為補充
 - confidenceScore 範圍 1-10`;
 
-  const result = await askGemini<FilterResult>(prompt);
+  const result = await askLLM<FilterResult>(prompt);
   return {
     mode: result.mode ?? 'kol-summary',
     industries: result.industries ?? [],
