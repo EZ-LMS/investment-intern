@@ -12,10 +12,12 @@ export async function filterIndustries(rawContents: RawContent[]): Promise<Filte
     return { mode: 'kol-summary', industries: [], kolTopics: [] };
   }
 
+  // Truncate to stay within Groq's 12k TPM limit (each source ≤300 chars, total ≤8k chars).
+  // Even with Gemini fallback, truncating saves Gemini's 1M tokens/day quota.
   const contentBlock = rawContents
-    .map((r) => `[來源: ${r.source} (${r.mediaType})]\n${r.content}`)
-    .join('\n\n---\n\n')
-    .slice(0, 60_000);
+    .map((r) => `[${r.source}/${r.mediaType}] ${r.content.slice(0, 300)}`)
+    .join('\n---\n')
+    .slice(0, 8_000);
 
   const prompt = `你是一位專業的供給面投資研究員，擅長「穿透式研究」。
 

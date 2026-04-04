@@ -12,7 +12,11 @@ export const config = {
   tavilyApiKey: requireEnv('TAVILY_API_KEY'),
   googleSheetsCsvUrl: requireEnv('GOOGLE_SHEETS_CSV_URL'),
 
-  // ── LLM settings (Groq free tier: 14,400 req/day, 30 RPM) ────────────────
+  // Gemini fallback (optional — set GEMINI_API_KEY to enable dual-LLM strategy)
+  geminiApiKey: process.env['GEMINI_API_KEY'] ?? '',
+  geminiModel: 'gemini-2.0-flash',
+
+  // ── LLM settings (Groq primary: 14,400 req/day, 30 RPM, 12k TPM) ─────────
   // llama-3.3-70b-versatile: 128k context, best for Chinese instruction-following
   llmModel: 'llama-3.3-70b-versatile',
 

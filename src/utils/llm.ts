@@ -1,12 +1,21 @@
 import Groq from 'groq-sdk';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { config } from '../config.js';
 
 const groq = new Groq({ apiKey: config.groqApiKey });
 
+// Gemini client is optional — only created when GEMINI_API_KEY is set
+const geminiClient = config.geminiApiKey
+  ? new GoogleGenerativeAI(config.geminiApiKey)
+  : null;
+
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
- * Call Groq LLM with a prompt.
+ * Call LLM with a prompt. Groq is tried first; Gemini is used as fallback when:
+ *   - Groq returns 413 (prompt too large for its 12k TPM limit)
+ *   - Groq returns 429 repeatedly (rate limited, exhausted retries)
+ *
  * @param prompt  The user prompt
  * @param format  'json' (default) — forces JSON output and parses it
  *                'text' — returns raw string (for Markdown generation)
@@ -33,16 +42,41 @@ async function callWithRetry<T>(prompt: string, format: 'json' | 'text', attempt
     return parseJson<T>(text);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    const isRateLimit = msg.includes('429') || msg.includes('rate_limit') || msg.includes('quota');
+    const is413 = msg.includes('413');
+    const isRateLimit = !is413 && (msg.includes('429') || msg.includes('rate_limit') || msg.includes('quota'));
 
-    if (isRateLimit && attempt < 2) {
-      const waitMs = attempt === 0 ? 15_000 : 60_000;
-      console.warn(`[LLM] Rate limited, retrying in ${waitMs / 1000}s… (attempt ${attempt + 1})`);
-      await delay(waitMs);
+    // 429: retry Groq once with a wait
+    if (isRateLimit && attempt < 1) {
+      console.warn(`[LLM] Groq rate limited, retrying in 15s… (attempt ${attempt + 1})`);
+      await delay(15_000);
       return callWithRetry<T>(prompt, format, attempt + 1);
     }
+
+    // 413 (too large) or repeated 429 → fall back to Gemini
+    if ((is413 || isRateLimit) && geminiClient) {
+      console.warn(`[LLM] Groq ${is413 ? '413 (prompt too large)' : '429 (exhausted retries)'} → falling back to Gemini`);
+      return callGemini<T>(prompt, format);
+    }
+
     throw err;
   }
+}
+
+async function callGemini<T>(prompt: string, format: 'json' | 'text'): Promise<T> {
+  const model = geminiClient!.getGenerativeModel({
+    model: config.geminiModel,
+    generationConfig: format === 'json'
+      ? { responseMimeType: 'application/json' }
+      : {},
+  });
+
+  const result = await model.generateContent(prompt);
+  const text = result.response.text();
+
+  if (format === 'text') {
+    return text as unknown as T;
+  }
+  return parseJson<T>(text);
 }
 
 function parseJson<T>(text: string): T {
