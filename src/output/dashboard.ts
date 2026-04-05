@@ -345,67 +345,51 @@ function renderFeedback(): string {
   </div>
 
   <script>
-  // ── Voice input ──────────────────────────────────────────────────────────
-  let recognition = null;
-  let isRecording = false;
-
+  // ── Voice input (simple: press → speak → auto-stop → text fills in) ──────
   function toggleVoice() {
     const btn = document.getElementById('voice-btn');
     const status = document.getElementById('feedback-status');
+    const textarea = document.getElementById('feedback-text');
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      status.textContent = '⚠️ 您的瀏覽器不支援語音輸入（建議使用 Chrome）';
+      status.textContent = '⚠️ 您的瀏覽器不支援語音輸入（請使用 Chrome 或 Edge）';
       return;
     }
 
-    if (isRecording) {
-      recognition && recognition.stop();
-      return;
-    }
+    btn.disabled = true;
+    btn.textContent = '🔴 聆聽中…';
+    status.textContent = '請說話，說完後自動結束';
 
-    recognition = new SpeechRecognition();
+    const recognition = new SpeechRecognition();
     recognition.lang = 'zh-TW';
-    recognition.continuous = true;
-    recognition.interimResults = true;
-
-    const textarea = document.getElementById('feedback-text');
-    const baseText = textarea.value;
-    let interim = '';
-
-    recognition.onstart = () => {
-      isRecording = true;
-      btn.textContent = '⏹ 停止錄音';
-      btn.classList.add('recording');
-      status.textContent = '🔴 錄音中…';
-    };
+    recognition.continuous = false;
+    recognition.interimResults = false;
 
     recognition.onresult = (e) => {
-      interim = '';
-      let final = baseText;
-      for (let i = 0; i < e.results.length; i++) {
-        if (e.results[i].isFinal) {
-          final += e.results[i][0].transcript;
-        } else {
-          interim += e.results[i][0].transcript;
-        }
-      }
-      textarea.value = final + interim;
+      const transcript = e.results[0][0].transcript;
+      textarea.value = textarea.value
+        ? textarea.value + '\\n' + transcript
+        : transcript;
     };
 
     recognition.onend = () => {
-      isRecording = false;
+      btn.disabled = false;
       btn.textContent = '🎤 語音輸入';
-      btn.classList.remove('recording');
-      status.textContent = '✅ 錄音結束';
+      status.textContent = '✅ 語音轉文字完成';
       setTimeout(() => { status.textContent = ''; }, 3000);
     };
 
     recognition.onerror = (e) => {
-      isRecording = false;
+      btn.disabled = false;
       btn.textContent = '🎤 語音輸入';
-      btn.classList.remove('recording');
-      status.textContent = '❌ 錄音錯誤：' + e.error;
+      const msg = e.error === 'not-allowed'
+        ? '請允許麥克風權限後再試'
+        : e.error === 'no-speech'
+        ? '沒有偵測到聲音，請再試一次'
+        : '錯誤：' + e.error;
+      status.textContent = '❌ ' + msg;
+      setTimeout(() => { status.textContent = ''; }, 5000);
     };
 
     recognition.start();

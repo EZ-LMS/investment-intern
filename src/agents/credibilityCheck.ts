@@ -78,9 +78,13 @@ ${companyBlocks}
   }> = [];
 
   try {
-    results = await askLLM(prompt);
+    const raw = await askLLM<unknown>(prompt);
+    // Groq JSON mode returns an object; unwrap if the array is nested inside
+    results = Array.isArray(raw)
+      ? (raw as typeof results)
+      : ((raw as Record<string, unknown>)[Object.keys(raw as object)[0]] as typeof results) ?? [];
   } catch (err) {
-    console.warn('[Credibility] Batch Gemini call failed:', err instanceof Error ? err.message : err);
+    console.warn('[Credibility] Batch LLM call failed:', err instanceof Error ? err.message : err);
   }
 
   return companies.map((c) => {

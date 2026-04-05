@@ -74,9 +74,13 @@ ${companyBlocks}
 
   let extracted: ExtractedMetrics[] = [];
   try {
-    extracted = await askLLM<ExtractedMetrics[]>(prompt);
+    const raw = await askLLM<unknown>(prompt);
+    // Groq JSON mode returns an object; unwrap if the array is nested inside
+    extracted = Array.isArray(raw)
+      ? (raw as ExtractedMetrics[])
+      : ((raw as Record<string, unknown>)[Object.keys(raw as object)[0]] as ExtractedMetrics[]) ?? [];
   } catch (err) {
-    console.warn('[MetricsExtractor] Batch Gemini call failed:', err instanceof Error ? err.message : err);
+    console.warn('[MetricsExtractor] Batch LLM call failed:', err instanceof Error ? err.message : err);
     // Return companies with doc sources only, no Gemini enrichment
     return companies.map((c) => ({
       ...c,
