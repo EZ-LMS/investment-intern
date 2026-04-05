@@ -1,4 +1,4 @@
-import type { DashboardData, IndustryReport, KolTopic, Company, CredibilityResult, RawContent } from '../types.js';
+import type { DashboardData, IndustryReport, KolTopic, KolSummary, Company, CredibilityResult, RawContent } from '../types.js';
 
 export function generateDashboard(data: DashboardData): string {
   const dateStr = new Date(data.generatedAt).toLocaleString('zh-TW', {
@@ -104,13 +104,22 @@ export function generateDashboard(data: DashboardData): string {
   .cred-guidance { grid-column: 1 / -1; }
 
   /* KOL Topics */
-  .kol-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
-  .kol-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.1rem; }
-  .kol-topic { font-size: 1rem; font-weight: 700; margin-bottom: 6px; }
-  .kol-summary { font-size: 0.83rem; color: var(--text-muted); margin-bottom: 8px; }
+  .kol-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.2rem; }
+  .kol-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.2rem; }
+  .kol-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .kol-name { font-size: 1rem; font-weight: 700; }
+  .kol-badge { font-size: 0.7rem; background: var(--surface2); color: var(--text-muted); border-radius: 4px; padding: 2px 7px; }
+  .kol-view { font-size: 0.82rem; color: var(--accent); font-style: italic; margin-bottom: 10px; }
+  .kol-points { list-style: none; padding: 0; margin: 0 0 10px 0; }
+  .kol-points li { font-size: 0.83rem; color: var(--text-muted); padding: 3px 0 3px 14px; position: relative; border-bottom: 1px solid var(--border); }
+  .kol-points li:last-child { border-bottom: none; }
+  .kol-points li::before { content: "▸"; position: absolute; left: 0; color: var(--accent); }
   .kol-companies { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
   .kol-company-tag { font-size: 0.72rem; background: var(--surface2); color: var(--accent); border-radius: 4px; padding: 2px 8px; }
   .kol-sources { display: flex; flex-wrap: wrap; gap: 4px; }
+  /* legacy topic cards */
+  .kol-topic { font-size: 1rem; font-weight: 700; margin-bottom: 6px; }
+  .kol-summary { font-size: 0.83rem; color: var(--text-muted); margin-bottom: 8px; }
 
   /* Sources */
   .sources-list { display: flex; flex-direction: column; gap: 0.4rem; }
@@ -277,19 +286,51 @@ function renderCredCard(cr: CredibilityResult): string {
 }
 
 function renderKolSummary(data: DashboardData): string {
-  if (data.kolTopics.length === 0) {
-    return `<div class="section"><p style="color:var(--text-muted);">本期無明顯討論主題。</p></div>`;
+  // Prefer per-KOL summaries (new); fall back to legacy topic list
+  if (data.kolSummaries && data.kolSummaries.length > 0) {
+    return `
+      <div class="section">
+        <div class="section-title">各 KOL 近期觀點彙整</div>
+        <div class="kol-grid">
+          ${data.kolSummaries.map(renderKolSummaryCard).join('')}
+        </div>
+      </div>`;
   }
+  if (data.kolTopics && data.kolTopics.length > 0) {
+    return `
+      <div class="section">
+        <div class="section-title">KOL 討論主題彙整</div>
+        <div class="kol-grid">
+          ${data.kolTopics.map(renderKolTopicCard).join('')}
+        </div>
+      </div>`;
+  }
+  return `<div class="section"><p style="color:var(--text-muted);">本期無明顯討論主題。</p></div>`;
+}
+
+function renderKolSummaryCard(s: KolSummary): string {
+  const points = s.keyPoints.map((p) =>
+    `<li>${escHtml(p)}</li>`
+  ).join('');
+
+  const tags = s.mentionedCompanies.map((c) =>
+    `<span class="kol-company-tag">${escHtml(c)}</span>`
+  ).join('');
+
   return `
-    <div class="section">
-      <div class="section-title">KOL 討論主題彙整</div>
-      <div class="kol-grid">
-        ${data.kolTopics.map(renderKolCard).join('')}
+    <div class="kol-card">
+      <div class="kol-header">
+        <div class="kol-name">${escHtml(s.source)}</div>
+        <span class="kol-badge">${escHtml(s.mediaType)}</span>
       </div>
+      ${s.overallView ? `<div class="kol-view">${escHtml(s.overallView)}</div>` : ''}
+      <ul class="kol-points">${points}</ul>
+      ${tags ? `<div class="kol-companies">${tags}</div>` : ''}
+      ${s.url ? `<div class="kol-sources"><a class="source-link" href="${escHtml(s.url)}" target="_blank" rel="noopener">前往來源</a></div>` : ''}
     </div>`;
 }
 
-function renderKolCard(t: KolTopic): string {
+function renderKolTopicCard(t: KolTopic): string {
   const tags = t.mentionedCompanies.map((c) =>
     `<span class="kol-company-tag">${escHtml(c)}</span>`
   ).join('');

@@ -60,11 +60,22 @@ export interface KolTopic {
   sourceUrls: string[];
 }
 
+/** Per-KOL detailed summary produced by kolSummarizer */
+export interface KolSummary {
+  source: string;             // KOL name / account handle
+  mediaType: string;          // "Threads" | "YT" | "Podcast" | "news"
+  url: string;                // primary source URL
+  keyPoints: string[];        // 2-5 specific discussion points
+  mentionedCompanies: string[]; // stocks / companies mentioned
+  overallView: string;        // overall stance (≤50 chars)
+}
+
 export interface DashboardData {
   generatedAt: string;
   mode: 'structural' | 'kol-summary';
   reports: IndustryReport[];
   kolTopics: KolTopic[];
+  kolSummaries: KolSummary[];
   rawSources: RawContent[];
 }
 

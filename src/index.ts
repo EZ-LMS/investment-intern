@@ -9,6 +9,7 @@ import { collectYouTube } from './collectors/youtube.js';
 import { collectNews } from './collectors/news.js';
 import { collectFeedback } from './collectors/feedback.js';
 import { filterIndustries } from './agents/industryFilter.js';
+import { summarizeKols } from './agents/kolSummarizer.js';
 import { researchIndustries } from './agents/industryResearch.js';
 import { pickCompanies } from './agents/companyPicker.js';
 import { enrichCompaniesWithDocs } from './agents/metricsExtractor.js';
@@ -16,7 +17,7 @@ import { checkCredibilityBatch } from './agents/credibilityCheck.js';
 import { appendHistory } from './agents/historyLog.js';
 import { runFeedbackDigest } from './agents/feedbackDigest.js';
 import { generateDashboard } from './output/dashboard.js';
-import type { DashboardData, IndustryReport } from './types.js';
+import type { DashboardData, IndustryReport, KolSummary } from './types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -54,6 +55,14 @@ async function run(): Promise<void> {
     console.log(`   Knowledge docs ready for ${industryKnowledgeMap.size} industries`);
   }
 
+  // ── Step 2.6: Per-KOL summaries (kol-summary mode only) ─────────────────
+  let kolSummaries: KolSummary[] = [];
+  if (filterResult.mode === 'kol-summary') {
+    console.log('\n📝 Step 2.6: Summarising each KOL / source…');
+    kolSummaries = await summarizeKols(rawContents);
+    console.log(`   Summarised ${kolSummaries.length} sources`);
+  }
+
   // ── Steps 3-5: Company picking, metrics, credibility ─────────────────────
   const reports: IndustryReport[] = [];
 
@@ -83,6 +92,7 @@ async function run(): Promise<void> {
     mode: filterResult.mode,
     reports,
     kolTopics: filterResult.kolTopics,
+    kolSummaries,
     rawSources: rawContents,
   };
 
