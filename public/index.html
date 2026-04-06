@@ -91,13 +91,22 @@
   .cred-guidance { grid-column: 1 / -1; }
 
   /* KOL Topics */
-  .kol-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
-  .kol-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.1rem; }
-  .kol-topic { font-size: 1rem; font-weight: 700; margin-bottom: 6px; }
-  .kol-summary { font-size: 0.83rem; color: var(--text-muted); margin-bottom: 8px; }
+  .kol-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.2rem; }
+  .kol-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.2rem; }
+  .kol-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .kol-name { font-size: 1rem; font-weight: 700; }
+  .kol-badge { font-size: 0.7rem; background: var(--surface2); color: var(--text-muted); border-radius: 4px; padding: 2px 7px; }
+  .kol-view { font-size: 0.82rem; color: var(--accent); font-style: italic; margin-bottom: 10px; }
+  .kol-points { list-style: none; padding: 0; margin: 0 0 10px 0; }
+  .kol-points li { font-size: 0.83rem; color: var(--text-muted); padding: 3px 0 3px 14px; position: relative; border-bottom: 1px solid var(--border); }
+  .kol-points li:last-child { border-bottom: none; }
+  .kol-points li::before { content: "▸"; position: absolute; left: 0; color: var(--accent); }
   .kol-companies { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
   .kol-company-tag { font-size: 0.72rem; background: var(--surface2); color: var(--accent); border-radius: 4px; padding: 2px 8px; }
   .kol-sources { display: flex; flex-wrap: wrap; gap: 4px; }
+  /* legacy topic cards */
+  .kol-topic { font-size: 1rem; font-weight: 700; margin-bottom: 6px; }
+  .kol-summary { font-size: 0.83rem; color: var(--text-muted); margin-bottom: 8px; }
 
   /* Sources */
   .sources-list { display: flex; flex-direction: column; gap: 0.4rem; }
@@ -136,24 +145,24 @@
   <div class="header">
     <h1>Investment <span>Intern</span></h1>
     <div class="meta">
-      <span>📅 2026/04/05 下午03:23</span>
+      <span>📅 2026/04/06 下午02:18</span>
       <span class="badge badge-kol">KOL 討論主題彙整</span>
     </div>
   </div>
 
   
-    <div class="section">
-      <div class="section-title">KOL 討論主題彙整</div>
-      <div class="kol-grid">
-        
+      <div class="section">
+        <div class="section-title">KOL 討論主題彙整</div>
+        <div class="kol-grid">
+          
     <div class="kol-card">
-      <div class="kol-topic">股市分析</div>
-      <div class="kol-summary">股癌 Podcast 分析股市趨勢</div>
+      <div class="kol-topic">股癌 Podcast</div>
+      <div class="kol-summary">股癌 Podcast 的 EP650 和 EP649</div>
       
-      <div class="kol-sources"><a class="source-link" href="https://example.com/stock-podcast" target="_blank" rel="noopener">來源1</a></div>
+      
     </div>
+        </div>
       </div>
-    </div>
 
   
     <div class="section">
