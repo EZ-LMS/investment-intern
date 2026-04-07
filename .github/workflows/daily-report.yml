@@ -2,7 +2,7 @@ name: Daily Investment Report
 
 on:
   schedule:
-    - cron: '0 0 * * *'   # UTC 00:00 = Taiwan 08:00
+    - cron: '0 18 * * *'  # UTC 18:00 (prev day) → with ~6h GitHub delay ≈ Taiwan 08:00
   workflow_dispatch:        # Allow manual trigger for testing
 
 permissions:
