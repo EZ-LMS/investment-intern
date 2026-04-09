@@ -286,7 +286,7 @@ function renderCredCard(cr: CredibilityResult): string {
 }
 
 function renderKolSummary(data: DashboardData): string {
-  // Prefer per-KOL summaries (new); fall back to legacy topic list
+  // Always use per-KOL summary format
   if (data.kolSummaries && data.kolSummaries.length > 0) {
     return `
       <div class="section">
@@ -296,16 +296,14 @@ function renderKolSummary(data: DashboardData): string {
         </div>
       </div>`;
   }
-  if (data.kolTopics && data.kolTopics.length > 0) {
-    return `
-      <div class="section">
-        <div class="section-title">KOL 討論主題彙整</div>
-        <div class="kol-grid">
-          ${data.kolTopics.map(renderKolTopicCard).join('')}
-        </div>
-      </div>`;
-  }
-  return `<div class="section"><p style="color:var(--text-muted);">本期無明顯討論主題。</p></div>`;
+  // No data collected at all today
+  return `
+    <div class="section">
+      <div class="section-title">各 KOL 近期觀點彙整</div>
+      <p style="color:var(--text-muted);padding:1rem 0;">
+        今日未能收集到足夠的來源內容（可能是 API 配額用盡或追蹤對象尚未發布新內容）。
+      </p>
+    </div>`;
 }
 
 function renderKolSummaryCard(s: KolSummary): string {
