@@ -16,6 +16,10 @@ export const config = {
   geminiApiKey: process.env['GEMINI_API_KEY'] ?? '',
   geminiModel: 'gemini-2.0-flash',
 
+  // Google Custom Search fallback (optional — 100 free queries/day)
+  googleCseKey: process.env['GOOGLE_CSE_KEY'] ?? '',
+  googleCseId: process.env['GOOGLE_CSE_ID'] ?? '',
+
   // ── LLM settings (Groq primary: 14,400 req/day, 30 RPM, 12k TPM) ─────────
   // llama-3.3-70b-versatile: 128k context, best for Chinese instruction-following
   llmModel: 'llama-3.3-70b-versatile',

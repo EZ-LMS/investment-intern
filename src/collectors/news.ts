@@ -1,8 +1,6 @@
-import { tavily } from '@tavily/core';
+import { searchWeb } from '../utils/search.js';
 import { config } from '../config.js';
 import type { RawContent, TrackingSource } from '../types.js';
-
-const client = tavily({ apiKey: config.tavilyApiKey });
 
 /**
  * Handles Podcast (RSS summary) and general news/financial media sources.
@@ -29,14 +27,9 @@ export async function collectNews(sources: TrackingSource[]): Promise<RawContent
           ? `site:${domain} ${src.name} (${config.supplyKeywords})`
           : `${src.name} (${config.supplyKeywords})`;
 
-        const res = await client.search(query, {
-          maxResults: 5,
-          searchDepth: 'basic',
-          includeAnswer: false,
-          days: 7,
-        });
+        const res = await searchWeb(query, { maxResults: 5, days: 7 });
 
-        for (const item of res.results) {
+        for (const item of res) {
           if (item.content && item.content.length > 100) {
             results.push({
               source: src.name,

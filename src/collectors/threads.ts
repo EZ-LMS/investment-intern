@@ -1,8 +1,6 @@
-import { tavily } from '@tavily/core';
+import { searchWeb } from '../utils/search.js';
 import { config } from '../config.js';
 import type { RawContent, TrackingSource } from '../types.js';
-
-const client = tavily({ apiKey: config.tavilyApiKey });
 
 export async function collectThreads(sources: TrackingSource[]): Promise<RawContent[]> {
   const threadsSources = sources.filter((s) => s.media.toLowerCase() === 'threads');
@@ -11,17 +9,12 @@ export async function collectThreads(sources: TrackingSource[]): Promise<RawCont
   for (const src of threadsSources) {
     try {
       console.log(`[Threads] Searching @${src.name}…`);
-      const res = await client.search(
+      const items = await searchWeb(
         `site:threads.net @${src.name} (${config.supplyKeywords})`,
-        {
-          maxResults: 5,
-          searchDepth: 'basic',
-          includeAnswer: false,
-          days: 7,
-        }
+        { maxResults: 5, days: 7 }
       );
 
-      for (const item of res.results) {
+      for (const item of items) {
         if (item.content && item.content.length > 50) {
           results.push({
             source: src.name,
