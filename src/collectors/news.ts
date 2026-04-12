@@ -7,7 +7,7 @@ import type { RawContent, TrackingSource } from '../types.js';
  */
 export async function collectNews(sources: TrackingSource[]): Promise<RawContent[]> {
   const newsSources = sources.filter(
-    (s) => !['threads', 'yt'].includes(s.media.toLowerCase())
+    (s) => !['threads', 'yt', 'podcast'].includes(s.media.toLowerCase())
   );
   const results: RawContent[] = [];
 

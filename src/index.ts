@@ -8,6 +8,7 @@ import { collectThreads } from './collectors/threads.js';
 import { collectYouTube } from './collectors/youtube.js';
 import { collectNews } from './collectors/news.js';
 import { collectFeedback } from './collectors/feedback.js';
+import { collectPodcastRSS } from './collectors/rss.js';
 import { filterIndustries } from './agents/industryFilter.js';
 import { summarizeKols } from './agents/kolSummarizer.js';
 import { researchIndustries } from './agents/industryResearch.js';
@@ -32,15 +33,16 @@ async function run(): Promise<void> {
   console.log(`   Found ${sources.length} sources`);
 
   console.log('\n📥 Step 1: Collecting content from all sources…');
-  const [threadsContent, ytContent, newsContent, feedbackContent] = await Promise.all([
+  const [threadsContent, ytContent, newsContent, podcastContent, feedbackContent] = await Promise.all([
     collectThreads(sources),
     collectYouTube(sources),
     collectNews(sources),
+    collectPodcastRSS(sources),
     collectFeedback(),
   ]);
 
-  const rawContents = [...threadsContent, ...ytContent, ...newsContent, ...feedbackContent];
-  console.log(`   Collected ${rawContents.length} items (Threads: ${threadsContent.length}, YT: ${ytContent.length}, News/Podcast: ${newsContent.length}, Feedback: ${feedbackContent.length})`);
+  const rawContents = [...threadsContent, ...ytContent, ...newsContent, ...podcastContent, ...feedbackContent];
+  console.log(`   Collected ${rawContents.length} items (Threads: ${threadsContent.length}, YT: ${ytContent.length}, News: ${newsContent.length}, Podcast RSS: ${podcastContent.length}, Feedback: ${feedbackContent.length})`);
 
   // ── Step 2: Industry filtering ───────────────────────────────────────────
   console.log('\n🔍 Step 2: Analysing industries (supply-side structural filter)…');
