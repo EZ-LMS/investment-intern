@@ -1,31 +1,42 @@
-import { tavily } from '@tavily/core';
 import { askLLM } from '../utils/llm.js';
-import { config } from '../config.js';
+import { getEarningsDocs } from '../utils/earningsFetch.js';
 import type { Company, CredibilityResult } from '../types.js';
 
-const client = tavily({ apiKey: config.tavilyApiKey });
-
-function getRecentQuarters(): { curQ: number; curY: number; prevQ: number; prevY: number } {
-  const now = new Date();
-  const month = now.getMonth() + 1;
-  const curQ = month <= 3 ? 4 : month <= 6 ? 1 : month <= 9 ? 2 : 3;
-  const curY = month <= 3 ? now.getFullYear() - 1 : now.getFullYear();
-  const prevQ = curQ === 1 ? 4 : curQ - 1;
-  const prevY = curQ === 1 ? curY - 1 : curY;
-  return { curQ, curY, prevQ, prevY };
+/**
+ * Robustly unwrap an LLM response into a typed array.
+ * Handles Groq JSON-object mode which may return:
+ *   - The array directly: [...]
+ *   - A wrapper object: { "companies": [...] }
+ *   - Numeric-keyed object: { "0": {...}, "1": {...} }
+ */
+function unwrapArray<T>(raw: unknown): T[] {
+  if (Array.isArray(raw)) return raw as T[];
+  if (typeof raw !== 'object' || raw === null) return [];
+  const values = Object.values(raw as Record<string, unknown>);
+  // Pattern 1: { "companies": [...] } → first array value wins
+  for (const v of values) {
+    if (Array.isArray(v) && v.length > 0) return v as T[];
+  }
+  // Pattern 2: { "0": {...}, "1": {...} } → all object values
+  if (values.length > 0 && values.every((v) => typeof v === 'object' && v !== null && !Array.isArray(v))) {
+    return values as T[];
+  }
+  return [];
 }
 
 /**
- * Check credibility for all companies in one Gemini call (batch).
+ * Check credibility for all companies in one batch LLM call.
+ * Documents are fetched via earningsFetch (shared cache with metricsExtractor),
+ * so Step 5 incurs zero additional Tavily calls if Step 4 already ran.
  */
 export async function checkCredibilityBatch(companies: Company[]): Promise<CredibilityResult[]> {
   if (companies.length === 0) return [];
 
-  // ── Fetch previous earnings docs for all companies ──
+  // ── Fetch docs via shared cache (no additional Tavily if metricsExtractor ran first) ──
   const docsMap: Record<string, string[]> = {};
   for (const c of companies) {
-    docsMap[c.ticker] = await fetchPreviousEarnings(c);
-    await new Promise((r) => setTimeout(r, 800));
+    const earningsDocs = await getEarningsDocs(c);
+    docsMap[c.ticker] = earningsDocs.map((d) => `[${d.url}]\n${d.content}`);
   }
 
   // ── Build one combined prompt ──
@@ -78,11 +89,8 @@ ${companyBlocks}
   }> = [];
 
   try {
-    const raw = await askLLM<unknown>(prompt);
-    // Groq JSON mode returns an object; unwrap if the array is nested inside
-    results = Array.isArray(raw)
-      ? (raw as typeof results)
-      : ((raw as Record<string, unknown>)[Object.keys(raw as object)[0]] as typeof results) ?? [];
+    const raw = await askLLM<unknown>(prompt, 'json', true); // preferGemini=true for large prompts
+    results = unwrapArray<(typeof results)[number]>(raw);
   } catch (err) {
     console.warn('[Credibility] Batch LLM call failed:', err instanceof Error ? err.message : err);
   }
@@ -100,39 +108,4 @@ ${companyBlocks}
       sourceUrl: r?.sourceUrl ?? undefined,
     };
   });
-}
-
-async function fetchPreviousEarnings(company: Company): Promise<string[]> {
-  const { curQ, curY, prevQ, prevY } = getRecentQuarters();
-  const queries =
-    company.market === 'US'
-      ? [
-          `${company.name} ${company.ticker} Q${curQ} ${curY} earnings results vs guidance`,
-          `${company.name} ${company.ticker} Q${prevQ} ${prevY} earnings call guidance outlook`,
-        ]
-      : [
-          `${company.ticker} ${company.name} ${curY} 第${curQ}季 法說會 指引`,
-          `${company.ticker} ${company.name} ${prevY} Q${prevQ} 財報 法說會`,
-        ];
-
-  const contents: string[] = [];
-  for (const q of queries) {
-    try {
-      const res = await client.search(q, {
-        maxResults: 2,
-        searchDepth: 'advanced',
-        includeAnswer: false,
-        days: 180,
-      });
-      for (const item of res.results) {
-        if (item.content && item.content.length > 200) {
-          contents.push(`[${item.url}]\n${item.content.slice(0, 3000)}`);
-        }
-      }
-    } catch (err) {
-      console.warn(`[Credibility] Search failed for "${q}":`, err instanceof Error ? err.message : err);
-    }
-    await new Promise((r) => setTimeout(r, 800));
-  }
-  return contents.slice(0, 3);
 }

@@ -1,0 +1,46 @@
+name: Feedback Digest
+
+# Triggered when a GitHub Issue is labeled — specifically when "user-feedback" label is added.
+# This allows the knowledge base to be updated immediately when the user submits feedback,
+# rather than waiting for the next morning's 08:00 pipeline run.
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  contents: write
+  issues: write   # Needed to close processed issues when threshold is reached
+
+jobs:
+  digest:
+    # Only run when the "user-feedback" label was just added
+    if: github.event.label.name == 'user-feedback'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run feedback digest
+        run: npm run feedback-digest
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Commit knowledge base update
+        run: |
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add knowledge/user-feedback-digest.md
+          git diff --cached --quiet || git commit -m "chore: update feedback digest [feedback #${{ github.event.issue.number }}]"
+          git push

@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "generate": "tsx src/index.ts",
-    "dry-run": "tsx src/index.ts --dry-run"
+    "dry-run": "tsx src/index.ts --dry-run",
+    "feedback-digest": "tsx src/scripts/runFeedbackDigest.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
@@ -16,6 +17,7 @@
     "dotenv": "^17.3.1",
     "groq-sdk": "^1.1.2",
     "pdf-parse": "^2.4.5",
+    "playwright": "^1.59.1",
     "yahoo-finance2": "^2.11.3",
     "youtube-transcript": "^1.2.1",
     "yt-search": "^2.13.1"

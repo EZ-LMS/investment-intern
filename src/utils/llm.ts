@@ -12,16 +12,38 @@ const geminiClient = config.geminiApiKey
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /**
- * Call LLM with a prompt. Groq is tried first; Gemini is used as fallback when:
- *   - Groq returns 413 (prompt too large for its 12k TPM limit)
- *   - Groq returns 429 repeatedly (rate limited, exhausted retries)
+ * Call LLM with a prompt.
  *
- * @param prompt  The user prompt
- * @param format  'json' (default) — forces JSON output and parses it
- *                'text' — returns raw string (for Markdown generation)
+ * @param prompt       The user prompt
+ * @param format       'json' (default) — forces JSON output and parses it
+ *                     'text' — returns raw string (for Markdown generation)
+ * @param preferGemini If true AND Gemini is available, skip Groq entirely and go
+ *                     straight to Gemini. Use for large prompts (earnings docs,
+ *                     multi-company batches) that risk hitting Groq's 12k TPM limit.
+ *
+ * Routing when preferGemini=false (default — Groq first):
+ *   Groq → on 413 (too large) or repeated 429 (rate limit) → Gemini fallback
+ *
+ * Routing when preferGemini=true:
+ *   Gemini → on failure → Groq fallback
  */
-export async function askLLM<T>(prompt: string, format: 'json' | 'text' = 'json'): Promise<T> {
+export async function askLLM<T>(
+  prompt: string,
+  format: 'json' | 'text' = 'json',
+  preferGemini = false
+): Promise<T> {
   await delay(config.llmDelay);
+
+  if (preferGemini && geminiClient) {
+    console.log('[LLM] preferGemini=true → Gemini');
+    try {
+      return await callGemini<T>(prompt, format);
+    } catch (geminiErr) {
+      console.warn('[LLM] Gemini failed, falling back to Groq:', geminiErr instanceof Error ? geminiErr.message : geminiErr);
+      return callWithRetry<T>(prompt, format);
+    }
+  }
+
   return callWithRetry<T>(prompt, format);
 }
 

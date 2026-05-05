@@ -1,20 +1,27 @@
-import { tavily } from '@tavily/core';
 import { askLLM } from '../utils/llm.js';
-import { config } from '../config.js';
+import { getEarningsDocs } from '../utils/earningsFetch.js';
 import type { Company } from '../types.js';
 
-const client = tavily({ apiKey: config.tavilyApiKey });
-
-/** Returns the most recently completed quarter based on today's date.
- *  Earnings are typically available ~6 weeks after quarter end. */
-function getRecentQuarters(): { curQ: number; curY: number; prevQ: number; prevY: number } {
-  const now = new Date();
-  const month = now.getMonth() + 1;
-  const curQ = month <= 3 ? 4 : month <= 6 ? 1 : month <= 9 ? 2 : 3;
-  const curY = month <= 3 ? now.getFullYear() - 1 : now.getFullYear();
-  const prevQ = curQ === 1 ? 4 : curQ - 1;
-  const prevY = curQ === 1 ? curY - 1 : curY;
-  return { curQ, curY, prevQ, prevY };
+/**
+ * Robustly unwrap an LLM response into a typed array.
+ * Handles Groq JSON-object mode which may return:
+ *   - The array directly: [...]
+ *   - A wrapper object: { "companies": [...] }
+ *   - Numeric-keyed object: { "0": {...}, "1": {...} }
+ */
+function unwrapArray<T>(raw: unknown): T[] {
+  if (Array.isArray(raw)) return raw as T[];
+  if (typeof raw !== 'object' || raw === null) return [];
+  const values = Object.values(raw as Record<string, unknown>);
+  // Pattern 1: { "companies": [...] } → first array value wins
+  for (const v of values) {
+    if (Array.isArray(v) && v.length > 0) return v as T[];
+  }
+  // Pattern 2: { "0": {...}, "1": {...} } → all object values
+  if (values.length > 0 && values.every((v) => typeof v === 'object' && v !== null && !Array.isArray(v))) {
+    return values as T[];
+  }
+  return [];
 }
 
 interface ExtractedMetrics {
@@ -27,17 +34,18 @@ interface ExtractedMetrics {
 }
 
 /**
- * Enrich all companies in one Gemini call (batch).
- * Fetches docs per company individually (Tavily), then sends all docs to Gemini at once.
+ * Enrich all companies in one batch LLM call.
+ * Documents are fetched via earningsFetch (AlphaMemo→MOPS/SEC EDGAR→Tavily)
+ * with an in-memory cache, so credibilityCheck can reuse the same docs.
  */
 export async function enrichCompaniesWithDocs(companies: Company[], industryName: string): Promise<Company[]> {
   if (companies.length === 0) return companies;
 
-  // ── Fetch docs for all companies (Tavily, no Gemini yet) ──
+  // ── Fetch docs for all companies (shared cache across Step 4 + Step 5) ──
   const docsMap: Record<string, { url: string; content: string }[]> = {};
   for (const c of companies) {
-    docsMap[c.ticker] = await fetchEarningsDocs(c);
-    await new Promise((r) => setTimeout(r, 800));
+    const earningsDocs = await getEarningsDocs(c);
+    docsMap[c.ticker] = earningsDocs.map((d) => ({ url: d.url, content: d.content }));
   }
 
   // ── Build one combined prompt for all companies ──
@@ -74,14 +82,11 @@ ${companyBlocks}
 
   let extracted: ExtractedMetrics[] = [];
   try {
-    const raw = await askLLM<unknown>(prompt);
-    // Groq JSON mode returns an object; unwrap if the array is nested inside
-    extracted = Array.isArray(raw)
-      ? (raw as ExtractedMetrics[])
-      : ((raw as Record<string, unknown>)[Object.keys(raw as object)[0]] as ExtractedMetrics[]) ?? [];
+    const raw = await askLLM<unknown>(prompt, 'json', true); // preferGemini=true for large prompts
+    extracted = unwrapArray<ExtractedMetrics>(raw);
   } catch (err) {
     console.warn('[MetricsExtractor] Batch LLM call failed:', err instanceof Error ? err.message : err);
-    // Return companies with doc sources only, no Gemini enrichment
+    // Return companies with doc sources only, no LLM enrichment
     return companies.map((c) => ({
       ...c,
       sources: (docsMap[c.ticker] ?? []).map((d) => d.url),
@@ -96,41 +101,4 @@ ${companyBlocks}
       sources: result?.sourceUrls ?? (docsMap[c.ticker] ?? []).map((d) => d.url),
     };
   });
-}
-
-async function fetchEarningsDocs(company: Company): Promise<{ url: string; content: string }[]> {
-  const { curQ, curY, prevQ, prevY } = getRecentQuarters();
-  const queries =
-    company.market === 'US'
-      ? [
-          `${company.name} ${company.ticker} Q${curQ} ${curY} earnings call transcript`,
-          `${company.name} ${company.ticker} Q${prevQ} ${prevY} earnings results guidance`,
-          `${company.name} investor relations ${curY} annual report`,
-        ]
-      : [
-          `${company.ticker} ${company.name} ${curY} Q${curQ} 法說會 簡報`,
-          `${company.ticker} ${company.name} ${curY} 第${curQ}季 財報 法說會`,
-          `${company.ticker} ${company.name} 法說會 site:mops.twse.com.tw`,
-        ];
-
-  const docs: { url: string; content: string }[] = [];
-  for (const q of queries) {
-    try {
-      const res = await client.search(q, {
-        maxResults: 2,
-        searchDepth: 'advanced',
-        includeAnswer: false,
-        days: 90,
-      });
-      for (const item of res.results) {
-        if (item.content && item.content.length > 200) {
-          docs.push({ url: item.url, content: item.content.slice(0, 3000) });
-        }
-      }
-    } catch (err) {
-      console.warn(`[Metrics] Search failed for "${q}":`, err instanceof Error ? err.message : err);
-    }
-    await new Promise((r) => setTimeout(r, 800));
-  }
-  return docs.slice(0, 3);
 }
