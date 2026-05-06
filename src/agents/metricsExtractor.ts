@@ -51,7 +51,14 @@ export async function enrichCompaniesWithDocs(companies: Company[], industryName
   // ── Build one combined prompt for all companies ──
   const companyBlocks = companies.map((c) => {
     const docs = docsMap[c.ticker] ?? [];
-    const docText = docs.map((d) => `[來源: ${d.url}]\n${d.content}`).join('\n---\n').slice(0, 6000);
+    // Give each doc an equal share of the budget so Doc 2 (previous quarter,
+    // which contains previousGuidance) isn't squeezed out by Doc 1.
+    // 8,000 chars/company × 6 companies ≈ 48k chars total — Gemini (1M ctx) handles
+    // this fine; Groq fallback may hit 12k TPM but will retry/fail gracefully.
+    const perDocLimit = docs.length > 0 ? Math.floor(8000 / docs.length) : 8000;
+    const docText = docs
+      .map((d) => `[來源: ${d.url}]\n${d.content.slice(0, perDocLimit)}`)
+      .join('\n---\n');
     return `### ${c.market === 'TW' ? c.ticker + ' ' : ''}${c.name} (${c.ticker})\n${docText || '（無法取得文件）'}`;
   }).join('\n\n');
 

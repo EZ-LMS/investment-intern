@@ -164,6 +164,8 @@ async function findTranscriptLinks(
     const unique: string[] = [];
 
     for (const { href } of allLinks) {
+      // Skip the listing page itself — it's just navigation chrome, not a transcript
+      if (href === BASE_URL || href === BASE_URL + '/') continue;
       if (href && !seen.has(href) && !href.includes('#') && href.startsWith('http')) {
         seen.add(href);
         unique.push(href);

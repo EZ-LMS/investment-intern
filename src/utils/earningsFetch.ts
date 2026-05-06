@@ -158,79 +158,137 @@ async function fetchMopsDocs(
 }
 
 // ── SEC EDGAR (美股) ──────────────────────────────────────────────────────────
+/**
+ * Fetch actual earnings press release content from SEC EDGAR.
+ * Strategy:
+ *   1. Get company's recent 8-K filings via EDGAR atom feed
+ *   2. Filter for earnings filings (item 2.02 = Results of Operations)
+ *   3. Fetch the filing index to find the press release exhibit (ex99-1)
+ *   4. Fetch and extract text from the press release HTML
+ */
 async function fetchSecEdgarDocs(company: Company): Promise<EarningsDoc[]> {
   const docs: EarningsDoc[] = [];
+  const headers = { 'User-Agent': 'investment-intern-bot contact@example.com' };
 
   try {
-    // Use EDGAR full-text search for recent 8-K filings (earnings releases + calls)
-    const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-    const startDate = sixMonthsAgo.toISOString().split('T')[0];
+    // Get recent 8-K filings via EDGAR atom feed (includes items description)
+    const atomUrl = `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company=&CIK=${encodeURIComponent(company.ticker)}&type=8-K&dateb=&owner=include&count=10&search_text=&output=atom`;
+    const atomRes = await fetch(atomUrl, { headers, signal: AbortSignal.timeout(12_000) });
+    if (!atomRes.ok) return docs;
 
-    const searchUrl = `https://efts.sec.gov/LATEST/search-index?q=%22${encodeURIComponent(company.name)}%22+%22earnings%22&dateRange=custom&startdt=${startDate}&forms=8-K&_source=file_date,period_of_report,entity_name,file_num,form_type,biz_location,inc_states&hits.hits.total.value=true&hits.hits._source.period_of_report=true&hits.hits._source.file_date=true&hits.hits._source.entity_name=true&hits.hits._source.file_num=true&hits.hits.highlight.file_date=true`;
+    const xml = await atomRes.text();
+    const entries = [...xml.matchAll(/<entry>[\s\S]*?<\/entry>/g)];
 
-    const res = await fetch(searchUrl, {
-      headers: { 'User-Agent': 'investment-intern-bot contact@example.com' },
-      signal: AbortSignal.timeout(10_000),
-    });
+    // Prioritise item 2.02 (Results of Operations = earnings), fall back to 8.01
+    const earningsEntries = entries.filter((m) =>
+      m[0].includes('items 2.02') || m[0].includes('item 2.02')
+    );
+    const candidateEntries = earningsEntries.length > 0 ? earningsEntries : entries;
 
-    if (res.ok) {
-      const data = await res.json() as {
-        hits?: { hits?: Array<{ _source?: { entity_name?: string; file_date?: string; file_num?: string }; _id?: string }> };
-      };
-      const hits = data?.hits?.hits ?? [];
+    for (const match of candidateEntries.slice(0, 3)) {
+      const entry = match[0];
+      const filingHref = entry.match(/<filing-href>([^<]+)<\/filing-href>/)?.[1]?.trim();
+      const filingDate = entry.match(/<filing-date>([^<]+)<\/filing-date>/)?.[1]?.trim() ?? '';
+      if (!filingHref) continue;
 
-      // Get first 2 filing URLs
-      for (const hit of hits.slice(0, 2)) {
-        const id = hit._id;
-        if (!id) continue;
+      try {
+        // Fetch the filing index page to find exhibit files
+        const indexRes = await fetch(filingHref, { headers, signal: AbortSignal.timeout(10_000) });
+        if (!indexRes.ok) continue;
+        const indexHtml = await indexRes.text();
 
-        // Construct the filing index URL
-        const filingUrl = `https://www.sec.gov/Archives/edgar/data/${id}`;
-        docs.push({
-          url: filingUrl,
-          content: `SEC EDGAR 8-K filing for ${company.name} (${hit._source?.entity_name ?? ''}), filed ${hit._source?.file_date ?? ''}. See ${filingUrl} for full transcript.`,
-          source: 'secEdgar',
-        });
+        // Find the earnings press release exhibit — prefer ex99-1, fallback to any .htm
+        const baseUrl = filingHref.substring(0, filingHref.lastIndexOf('/'));
+        const allLinks = [...indexHtml.matchAll(/href="(\/Archives\/edgar\/data[^"]*\.htm)"/gi)]
+          .map((m) => 'https://www.sec.gov' + m[1]);
+
+        const pressReleaseUrl =
+          allLinks.find((u) => /ex99[-_]?1|ex-99\.1|pressrelease|press[-_]release/i.test(u)) ??
+          allLinks.find((u) => /ex99/i.test(u)) ??
+          allLinks[0];
+
+        if (!pressReleaseUrl) continue;
+
+        // Fetch and extract text from the press release
+        const docRes = await fetch(pressReleaseUrl, { headers, signal: AbortSignal.timeout(12_000) });
+        if (!docRes.ok) continue;
+        const docHtml = await docRes.text();
+
+        // Strip HTML and clean text
+        const text = docHtml
+          .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+          .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+          .replace(/&nbsp;/g, ' ')
+          .replace(/&#[0-9]+;/g, ' ')
+          .replace(/&[a-z]+;/g, ' ')
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+
+        if (text.length > 300) {
+          console.log(`   [EarningsFetch] SEC EDGAR: got ${text.length} chars for ${company.ticker} (${filingDate})`);
+          docs.push({
+            url: pressReleaseUrl,
+            content: extractEarningsContent(text),
+            source: 'secEdgar',
+          });
+          if (docs.length >= 2) break; // 2 filings is enough
+        }
+      } catch (innerErr) {
+        // Non-fatal — try next filing
+        console.warn(`   [EarningsFetch] EDGAR filing fetch failed:`, innerErr instanceof Error ? innerErr.message.slice(0, 80) : innerErr);
       }
+
+      await new Promise((r) => setTimeout(r, 400)); // polite delay
     }
   } catch (err) {
-    console.warn(`   [EarningsFetch] SEC EDGAR search failed for ${company.ticker}:`, err instanceof Error ? err.message : err);
-  }
-
-  // Also try the EDGAR company search API for most recent 8-K documents
-  if (docs.length < 1) {
-    try {
-      const companyUrl = `https://www.sec.gov/cgi-bin/browse-edgar?action=getcompany&company=&CIK=${encodeURIComponent(company.ticker)}&type=8-K&dateb=&owner=include&count=5&search_text=&output=atom`;
-      const res = await fetch(companyUrl, {
-        headers: { 'User-Agent': 'investment-intern-bot contact@example.com' },
-        signal: AbortSignal.timeout(10_000),
-      });
-
-      if (res.ok) {
-        const xml = await res.text();
-        // Extract filing URLs from Atom feed
-        const entryMatches = [...xml.matchAll(/<entry>[\s\S]*?<\/entry>/g)];
-        for (const match of entryMatches.slice(0, 2)) {
-          const entry = match[0];
-          const titleMatch = entry.match(/<title[^>]*>([^<]+)<\/title>/);
-          const linkMatch = entry.match(/<link[^>]+href="([^"]+)"/);
-          const updatedMatch = entry.match(/<updated>([^<]+)<\/updated>/);
-          if (linkMatch?.[1]) {
-            docs.push({
-              url: linkMatch[1],
-              content: `SEC EDGAR ${titleMatch?.[1] ?? '8-K'} filing for ${company.name}, filed ${updatedMatch?.[1]?.split('T')[0] ?? ''}. See ${linkMatch[1]} for full details.`,
-              source: 'secEdgar',
-            });
-          }
-        }
-      }
-    } catch {
-      // Silent — this is a secondary attempt
-    }
+    console.warn(`   [EarningsFetch] SEC EDGAR failed for ${company.ticker}:`, err instanceof Error ? err.message : err);
   }
 
   return docs;
+}
+
+// ── Smart earnings content extractor ────────────────────────────────────────
+/**
+ * Extracts the most useful portions of an earnings press release:
+ *   1. First 2,500 chars (financial highlights + actual results)
+ *   2. The "Outlook" / "Business Outlook" / "Guidance" section (~1,500 chars)
+ *
+ * Earnings press releases typically bury the guidance section after financial
+ * tables (often around char 3,000-5,000). A flat 5,000-char slice often
+ * includes lengthy footnotes but misses the outlook entirely.
+ */
+function extractEarningsContent(text: string): string {
+  const summary = text.slice(0, 2_500);
+
+  // Search for the guidance section using common press release headings
+  const lower = text.toLowerCase();
+  const outlookPatterns = [
+    'business outlook',
+    '\noutlook\n',
+    ' outlook ',
+    'financial outlook',
+    'guidance',
+    'next quarter',
+    'fiscal quarter outlook',
+  ];
+
+  let outlookStart = -1;
+  for (const pattern of outlookPatterns) {
+    const idx = lower.indexOf(pattern, 1_000); // Skip matches in the header area
+    if (idx > 0 && (outlookStart === -1 || idx < outlookStart)) {
+      outlookStart = idx;
+    }
+  }
+
+  if (outlookStart > 2_500) {
+    // Guidance section is beyond our summary window — include it separately
+    const outlookSnippet = text.slice(outlookStart, outlookStart + 1_500);
+    return `${summary}\n\n[OUTLOOK SECTION]\n${outlookSnippet}`;
+  }
+
+  // Guidance is already within the first 2,500 chars — extend the window instead
+  return text.slice(0, 4_000);
 }
 
 // ── Tavily fallback ──────────────────────────────────────────────────────────

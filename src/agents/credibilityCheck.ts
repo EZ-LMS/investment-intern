@@ -42,7 +42,12 @@ export async function checkCredibilityBatch(companies: Company[]): Promise<Credi
   // ── Build one combined prompt ──
   const companyBlocks = companies.map((c) => {
     const docs = docsMap[c.ticker] ?? [];
-    const docText = docs.join('\n---\n').slice(0, 5000);
+    // Give each doc an equal share: Doc 1 = current quarter actual results,
+    // Doc 2 = previous quarter with the previousGuidance we need to compare against.
+    const perDocLimit = docs.length > 0 ? Math.floor(8000 / docs.length) : 8000;
+    const docText = docs
+      .map((d) => d.slice(0, perDocLimit))
+      .join('\n---\n');
     return `### ${c.market === 'TW' ? c.ticker + ' ' : ''}${c.name} (${c.ticker})\n${docText || '（無法取得法說會資料）'}`;
   }).join('\n\n');
 
