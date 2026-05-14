@@ -9,6 +9,7 @@
     "feedback-digest": "tsx src/scripts/runFeedbackDigest.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.96.0",
     "@google/generative-ai": "^0.24.1",
     "@tavily/core": "^0.7.2",
     "cheerio": "^1.2.0",

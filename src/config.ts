@@ -1,4 +1,5 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
+dotenv.config({ override: true }); // override: true ensures .env values beat empty shell vars
 
 function requireEnv(key: string): string {
   const val = process.env[key];
@@ -11,6 +12,11 @@ export const config = {
   groqApiKey: requireEnv('GROQ_API_KEY'),
   tavilyApiKey: requireEnv('TAVILY_API_KEY'),
   googleSheetsCsvUrl: requireEnv('GOOGLE_SHEETS_CSV_URL'),
+
+  // Claude Haiku — primary large-context LLM (replaces Gemini)
+  // $0.80/M input, 200k ctx, ~$0.06/day → $100 credit = 1,600 days of runway
+  anthropicApiKey: process.env['ANTHROPIC_API_KEY'] ?? '',
+  anthropicModel: 'claude-haiku-4-5-20251001',
 
   // Gemini fallback (optional — set GEMINI_API_KEY to enable dual-LLM strategy)
   geminiApiKey: process.env['GEMINI_API_KEY'] ?? '',

@@ -94,7 +94,7 @@ ${companyBlocks}
   }> = [];
 
   try {
-    const raw = await askLLM<unknown>(prompt, 'json', true); // preferGemini=true for large prompts
+    const raw = await askLLM<unknown>(prompt, 'json', true); // preferLargeCtx=true → Claude Haiku
     results = unwrapArray<(typeof results)[number]>(raw);
   } catch (err) {
     console.warn('[Credibility] Batch LLM call failed:', err instanceof Error ? err.message : err);

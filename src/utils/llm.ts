@@ -1,10 +1,17 @@
 import Groq from 'groq-sdk';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import Anthropic from '@anthropic-ai/sdk';
 import { config } from '../config.js';
 
 const groq = new Groq({ apiKey: config.groqApiKey });
 
-// Gemini client is optional — only created when GEMINI_API_KEY is set
+// Claude Haiku — primary large-context LLM ($0.80/M tokens, 200k ctx)
+// Replaces Gemini which has an unreliable free-tier quota (limit: 0 after exhaustion)
+const anthropicClient = config.anthropicApiKey
+  ? new Anthropic({ apiKey: config.anthropicApiKey })
+  : null;
+
+// Gemini — legacy fallback, only used if Claude key is not set
 const geminiClient = config.geminiApiKey
   ? new GoogleGenerativeAI(config.geminiApiKey)
   : null;
@@ -14,39 +21,71 @@ const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 /**
  * Call LLM with a prompt.
  *
- * @param prompt       The user prompt
- * @param format       'json' (default) — forces JSON output and parses it
- *                     'text' — returns raw string (for Markdown generation)
- * @param preferGemini If true AND Gemini is available, skip Groq entirely and go
- *                     straight to Gemini. Use for large prompts (earnings docs,
- *                     multi-company batches) that risk hitting Groq's 12k TPM limit.
+ * @param prompt         The user prompt
+ * @param format         'json' (default) — forces JSON output and parses it
+ *                       'text' — returns raw string (for Markdown generation)
+ * @param preferLargeCtx If true, skip Groq and use Claude Haiku first (large
+ *                       prompts that risk hitting Groq's 12k TPM). Falls back to
+ *                       Gemini if no Claude key, then Groq as last resort.
  *
- * Routing when preferGemini=false (default — Groq first):
- *   Groq → on 413 (too large) or repeated 429 (rate limit) → Gemini fallback
+ * Routing when preferLargeCtx=false (default — Groq first):
+ *   Groq → on 413/repeated 429 → Claude → Gemini
  *
- * Routing when preferGemini=true:
- *   Gemini → on failure → Groq fallback
+ * Routing when preferLargeCtx=true:
+ *   Claude Haiku → on failure → Groq → on 413 → Gemini
  */
 export async function askLLM<T>(
   prompt: string,
   format: 'json' | 'text' = 'json',
-  preferGemini = false
+  preferLargeCtx = false
 ): Promise<T> {
   await delay(config.llmDelay);
 
-  if (preferGemini && geminiClient) {
-    console.log('[LLM] preferGemini=true → Gemini');
-    try {
-      return await callGemini<T>(prompt, format);
-    } catch (geminiErr) {
-      console.warn('[LLM] Gemini failed, falling back to Groq:', geminiErr instanceof Error ? geminiErr.message : geminiErr);
-      return callWithRetry<T>(prompt, format);
+  if (preferLargeCtx) {
+    if (anthropicClient) {
+      console.log('[LLM] preferLargeCtx=true → Claude Haiku');
+      try {
+        return await callClaude<T>(prompt, format);
+      } catch (claudeErr) {
+        console.warn('[LLM] Claude failed, falling back to Groq:', claudeErr instanceof Error ? claudeErr.message.slice(0, 120) : claudeErr);
+        return callWithRetry<T>(prompt, format);
+      }
+    }
+    // No Claude key → fall back to Gemini (legacy behaviour)
+    if (geminiClient) {
+      console.log('[LLM] preferLargeCtx=true (no Claude key) → Gemini');
+      try {
+        return await callGemini<T>(prompt, format);
+      } catch (geminiErr) {
+        console.warn('[LLM] Gemini failed, falling back to Groq:', geminiErr instanceof Error ? geminiErr.message.slice(0, 120) : geminiErr);
+        return callWithRetry<T>(prompt, format);
+      }
     }
   }
 
   return callWithRetry<T>(prompt, format);
 }
 
+// ── Claude Haiku ──────────────────────────────────────────────────────────────
+async function callClaude<T>(prompt: string, format: 'json' | 'text'): Promise<T> {
+  const systemPrompt = format === 'json'
+    ? 'You are a financial analysis assistant. Always respond with valid JSON only — no markdown code fences, no explanation outside JSON.'
+    : 'You are a financial analysis assistant.';
+
+  const response = await anthropicClient!.messages.create({
+    model: config.anthropicModel,
+    max_tokens: 4096,
+    system: systemPrompt,
+    messages: [{ role: 'user', content: prompt }],
+  });
+
+  const firstBlock = response.content[0];
+  const text = firstBlock?.type === 'text' ? firstBlock.text : '';
+  if (format === 'text') return text as unknown as T;
+  return parseJson<T>(text);
+}
+
+// ── Groq (primary for small / fast calls) ────────────────────────────────────
 async function callWithRetry<T>(prompt: string, format: 'json' | 'text', attempt = 0): Promise<T> {
   try {
     const response = await groq.chat.completions.create({
@@ -57,10 +96,7 @@ async function callWithRetry<T>(prompt: string, format: 'json' | 'text', attempt
     });
 
     const text = response.choices[0]?.message?.content ?? '';
-
-    if (format === 'text') {
-      return text as unknown as T;
-    }
+    if (format === 'text') return text as unknown as T;
     return parseJson<T>(text);
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -74,9 +110,15 @@ async function callWithRetry<T>(prompt: string, format: 'json' | 'text', attempt
       return callWithRetry<T>(prompt, format, attempt + 1);
     }
 
-    // 413 (too large) or repeated 429 → fall back to Gemini
+    // 413 or repeated 429 → fall back to Claude
+    if ((is413 || isRateLimit) && anthropicClient) {
+      console.warn(`[LLM] Groq ${is413 ? '413 (prompt too large)' : '429 exhausted'} → falling back to Claude`);
+      return callClaude<T>(prompt, format);
+    }
+
+    // No Claude → legacy Gemini fallback
     if ((is413 || isRateLimit) && geminiClient) {
-      console.warn(`[LLM] Groq ${is413 ? '413 (prompt too large)' : '429 (exhausted retries)'} → falling back to Gemini`);
+      console.warn(`[LLM] Groq ${is413 ? '413' : '429'} → falling back to Gemini`);
       return callGemini<T>(prompt, format);
     }
 
@@ -84,6 +126,7 @@ async function callWithRetry<T>(prompt: string, format: 'json' | 'text', attempt
   }
 }
 
+// ── Gemini (legacy fallback, only when Claude key is not set) ─────────────────
 async function callGemini<T>(prompt: string, format: 'json' | 'text'): Promise<T> {
   const model = geminiClient!.getGenerativeModel({
     model: config.geminiModel,
@@ -94,10 +137,7 @@ async function callGemini<T>(prompt: string, format: 'json' | 'text'): Promise<T
 
   const result = await model.generateContent(prompt);
   const text = result.response.text();
-
-  if (format === 'text') {
-    return text as unknown as T;
-  }
+  if (format === 'text') return text as unknown as T;
   return parseJson<T>(text);
 }
 
