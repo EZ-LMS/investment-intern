@@ -1,5 +1,23 @@
 ## 2026-05-14 ｜ 供給面結構性機會
 
+**發現產業**：記憶體（信心 8/10）、電力設備（信心 6/10）
+
+
+| 產業 | 推薦台股 | 推薦美股 |
+|------|---------|---------|
+| 記憶體 | 2408 南亞科、2303 力晶、2344 華邦電 | MU Micron Technology、005930.KS Samsung Electronics、000660.KS SK Hynix |
+| 電力設備 | 1301 台塑、2002 中國鋼鐵、1536 和泰 | WAB Westinghouse Air Brake Technologies、GE General Electric、AYI Acuity Brands |
+
+**管理層評鑑亮點**：Micron Technology 保守型；Westinghouse Air Brake Technologies 保守型；General Electric 保守型；Acuity Brands 保守型
+
+**供給限制摘要**：
+- **記憶體**：DRAM產能長期未見有效擴充
+- **電力設備**：變壓器交期長
+
+---
+
+## 2026-05-14 ｜ 供給面結構性機會
+
 **發現產業**：半導體（信心 8/10）、電動車電池（信心 6/10）
 
 
