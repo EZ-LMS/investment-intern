@@ -1,3 +1,23 @@
+## 2026-07-19 ｜ 供給面結構性機會
+
+**發現產業**：PCB（信心 8/10）、記憶體（信心 9/10）、光通信（信心 8/10）
+
+
+| 產業 | 推薦台股 | 推薦美股 |
+|------|---------|---------|
+| PCB | 2317 鴻海、2330 台積電、2303 聯電 | INTC Intel、TXN Texas Instruments、CSCO Cisco Systems |
+| 記憶體 | 2408 南亞科、2303 力晶、2344 華邦電 | MU Micron Technology、005930.KS Samsung Electronics、000660.KS SK Hynix |
+| 光通信 | 4947 仕佳光子、3688 光迅科技、3081 長光華芯 | LITE Lumentum、AVGO Broadcom、MRVL Marvell |
+
+**管理層評鑑亮點**：台積電 保守型；Intel 保守型；Texas Instruments 保守型；Cisco Systems 保守型
+
+**供給限制摘要**：
+- **PCB**：銅箔、T-Glass全線緊俏
+- **記憶體**：缺貨
+- **光通信**：產能擴充不足
+
+---
+
 ## 2026-07-18 ｜ 供給面結構性機會
 
 **發現產業**：半導體（信心 8/10）、電力設備（信心 6/10）
